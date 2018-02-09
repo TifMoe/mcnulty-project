@@ -3,7 +3,7 @@ import yaml
 import tweepy
 from configparser import ConfigParser
 from math import ceil
-import pprint
+import pickle
 import datetime
 import time
 
@@ -93,7 +93,6 @@ class TwAPI:
                 profiles.extend(profiles_batch)
 
             except tweepy.error.TweepError as e:
-                print('Error: Please make sure the twitter account ids are int types')
                 if e.response.status_code == 404:
                     pass
                 else:
@@ -104,6 +103,14 @@ class TwAPI:
 
         return profiles
 
+    @staticmethod
+    def limit_handled(cursor):
+        while True:
+            try:
+                yield cursor.next()
+            except tweepy.RateLimitError:
+                time.sleep(15 * 60)
+
     def fetch_user_timeline(self, screen_name, days_ago, include_rts=False):
         """"
         Takes in a twitter screen name and returns all tweet data in json format for tweets created in the past X days
@@ -111,24 +118,16 @@ class TwAPI:
         Returns a list of json tweets
         """
         tweet_list=[]
-        page = 1
-        deadend = False
 
-        while True:
-            tweets = self.api.user_timeline(screen_name=screen_name, count = 200,
-                                            page=page, tweet_mode="extended", include_rts=include_rts)
+        cursor = tweepy.Cursor(self.api.user_timeline, screen_name=screen_name,
+                               include_rts=include_rts, tweet_mode="extended", count=200)
+        tweets = self.limit_handled(cursor.items())
 
-            for tweet in tweets:
-                if (datetime.datetime.now() - tweet.created_at).days < days_ago:
-                    # Do processing here:
-                    tweet_list.append(tweet._json)
-                else:
-                    deadend = True
-                    return tweet_list
-
-            if not deadend:
-                page += 1
-                time.sleep(500)
+        for tweet in tweets:
+            if (datetime.datetime.now() - tweet.created_at).days < days_ago:
+                tweet_list.append(tweet._json)
+            else:
+                return tweet_list
 
     def fetch_all_timelines(self, screen_names, days_ago, include_rts=False):
         """
@@ -141,12 +140,22 @@ class TwAPI:
         timeline_list = []
         print('Starting', self.api.rate_limit_status()['resources']['statuses']['/statuses/user_timeline'])
 
-        for name in screen_names:
-            print(name)
-            timelines = self.fetch_user_timeline(screen_name=name, days_ago=days_ago,
-                                                 include_rts=include_rts)
-            print(len(timelines))
-            timeline_list.extend(timelines)
+        for index, name in enumerate(screen_names):
+
+            print(index, name)
+            try:
+                timeline = self.fetch_user_timeline(screen_name=name, days_ago=days_ago,
+                                                    include_rts=include_rts)
+
+                if timeline:
+                    print('{} tweets in past {} days'.format(len(timeline), days_ago))
+                    timeline_list.extend(timeline)
+
+            except tweepy.error.TweepError as e:
+                if e.response.status_code == 404:
+                    pass
+                else:
+                    raise e
 
         print('Finish', self.api.rate_limit_status()['resources']['statuses']['/statuses/user_timeline'])
 
@@ -167,7 +176,6 @@ def profile_dataframe(profile_json):
     :return: Dataframe with columns for the id, created date, description, follower/tweet counts,
         location and name
     """
-
     profiles_df = pd.DataFrame(columns=['id', 'created_at', 'name',
                                         'description', 'location',
                                         'favourites_count', 'followers_count',
@@ -199,8 +207,39 @@ profiles_df = profile_dataframe(profiles)
 profiles_df.to_pickle('data/twitter_profiles_df.pkl')
 
 # Get timeline data for users
-timelines = api.fetch_all_timelines(screen_names=tw_names, days_ago=30, include_rts=False)
+time_lines = api.fetch_all_timelines(screen_names=tw_names, days_ago=30, include_rts=False)
+
+# Pickle raw tweet data
+with open('data/raw_twetes.pkl', 'wb') as f:
+    pickle.dump(time_lines, f)
 
 
+def tweets_dataframe(tweets_json):
+    """
+    Takes in a list of user tweet data in json format and returns a dataframe containing
+    relevant information
+    :param tweets_json: List of tweet data in json formats
+    :return: Dataframe with columns for the id, created date, description, follower/tweet counts,
+        location and name
+    """
+    tweets_df = pd.DataFrame(columns=['tweet_id', 'user_id', 'created_at', 'hashtags',
+                                      'tweet_text', 'favorite_count', 'retweet_count',
+                                      'followers_count'])
 
+    for i, json in enumerate(tweets_json):
+        print(i)
+        tweets_df.loc[i, "tweet_id"] = tweets_json[i]['id']
+        tweets_df.loc[i, "user_id"] = tweets_json[i]['user']['id']
+        tweets_df.loc[i, "created_at"] = tweets_json[i]['created_at']
+        tweets_df.loc[i, "hashtags"] = tweets_json[i]['entities']['hashtags']
+        tweets_df.loc[i, "tweet_text"] = tweets_json[i]['full_text']
+        tweets_df.loc[i, "favorite_count"] = tweets_json[i]['favorite_count']
+        tweets_df.loc[i, "retweet_count"] = tweets_json[i]['retweet_count']
+        tweets_df.loc[i, "followers_count"] = tweets_json[i]['user']['followers_count']
+
+    return tweets_df
+
+
+tweets_df = tweets_dataframe(time_lines)
+tweets_df.to_pickle('data/tweets_df.pkl')
 

@@ -4,19 +4,24 @@ import tweepy
 from configparser import ConfigParser
 from math import ceil
 import pprint
-from time import sleep, strftime, time
+import datetime
+import time
 
 
 config = ConfigParser()
 config.read('config.ini')
 
 
-# Import data files
+# Import legislator YAML files as pandas dataframes
 with open('congress-legislators/legislators-current.yaml', 'r') as f:
     current_legis = pd.io.json.json_normalize(yaml.load(f))
 
 with open('congress-legislators/legislators-social-media.yaml', 'r') as f:
     social = pd.io.json.json_normalize(yaml.load(f))
+
+# Pickle data in dataframe format
+current_legis.to_pickle('data/current_legislators_df.pkl')
+social.to_pickle('data/legislators_social_df.pkl')
 
 
 # Create class to access Twitter API
@@ -32,7 +37,7 @@ class TwAPI:
         """
         self.auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
         self.auth.set_access_token(access_token, access_token_secret)
-        self.api = tweepy.API(self.auth)
+        self.api = tweepy.API(self.auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
 
     @staticmethod
     def batch_profiles(profile_ids, batch_size):
@@ -99,6 +104,54 @@ class TwAPI:
 
         return profiles
 
+    def fetch_user_timeline(self, screen_name, days_ago, include_rts=False):
+        """"
+        Takes in a twitter screen name and returns all tweet data in json format for tweets created in the past X days
+        Parameter 'include_rts' to exclude or include retweets
+        Returns a list of json tweets
+        """
+        tweet_list=[]
+        page = 1
+        deadend = False
+
+        while True:
+            tweets = self.api.user_timeline(screen_name=screen_name, count = 200,
+                                            page=page, tweet_mode="extended", include_rts=include_rts)
+
+            for tweet in tweets:
+                if (datetime.datetime.now() - tweet.created_at).days < days_ago:
+                    # Do processing here:
+                    tweet_list.append(tweet._json)
+                else:
+                    deadend = True
+                    return tweet_list
+
+            if not deadend:
+                page += 1
+                time.sleep(500)
+
+    def fetch_all_timelines(self, screen_names, days_ago, include_rts=False):
+        """
+        Take in
+        :param screen_names:
+        :param days_ago:
+        :param include_rts:
+        :return:
+        """
+        timeline_list = []
+        print('Starting', self.api.rate_limit_status()['resources']['statuses']['/statuses/user_timeline'])
+
+        for name in screen_names:
+            print(name)
+            timelines = self.fetch_user_timeline(screen_name=name, days_ago=days_ago,
+                                                 include_rts=include_rts)
+            print(len(timelines))
+            timeline_list.extend(timelines)
+
+        print('Finish', self.api.rate_limit_status()['resources']['statuses']['/statuses/user_timeline'])
+
+        return timeline_list
+
 
 api = TwAPI(consumer_key=config.get('TwitterKeys', 'consumer_key'),
             consumer_secret=config.get('TwitterKeys', 'consumer_secret'),
@@ -137,21 +190,17 @@ def profile_dataframe(profile_json):
 # Subset social data with valid twitter id
 twitter_social = social.dropna(subset=['social.twitter_id'])
 id_ints = [int(x) for x in twitter_social['social.twitter_id']]
+tw_names = list(twitter_social['social.twitter'])
 
 profiles = api.fetch_all_profiles(ids=id_ints)
 profiles_df = profile_dataframe(profiles)
 
+# Pickle profile data
+profiles_df.to_pickle('data/twitter_profiles_df.pkl')
+
+# Get timeline data for users
+timelines = api.fetch_all_timelines(screen_names=tw_names, days_ago=30, include_rts=False)
 
 
-for status in tweepy.Cursor(tw_api.user_timeline, screen_name='RepCurbelo').items():
-    print(status._json['text'])
-
-created = []
-tweet_text = []
-followers = []
-friends = []
-
-for status in tweepy.Cursor(tw_api.user_timeline, screen_name='RepCurbelo').items():
-    pprint.pprint(status._json)
 
 

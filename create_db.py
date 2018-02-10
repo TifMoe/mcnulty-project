@@ -1,25 +1,13 @@
-import pandas as pd
-from configparser import ConfigParser
 from sqlalchemy.dialects.postgresql import INTEGER, VARCHAR, DATE
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, ForeignKey, create_engine, MetaData
+from sqlalchemy import Column, ForeignKey
+from db_connect import db_create_engine
 
-# Connect to database and instantiate session
+
 Base = declarative_base()
-
-config = ConfigParser()
-config.read('config.ini')
-
-engine = create_engine('postgresql://{}:{}@{}:{}/{}'
-                       .format(config.get('AWS_RDS', 'user'),
-                               config.get('AWS_RDS', 'password'),
-                               config.get('AWS_RDS', 'host'),
-                               config.get('AWS_RDS', 'port'),
-                               config.get('AWS_RDS', 'db')))
-
-Session = sessionmaker(bind=engine)
-session = Session()
+engine = db_create_engine(config_file='config.ini',
+                          conn_name='AWS_RDS')
 
 
 class Legislators(Base):
@@ -72,16 +60,12 @@ class Tweets(Base):
     twitter_accounts = relationship('TwitterProfiles')
 
 
-# Tweets.__table__.drop(engine)
-# Social.__table__.drop(engine)
-# TwitterProfiles.__table__.drop(engine)
-# Legislators.__table__.drop(engine)
-
 Base.metadata.create_all(engine)
 
-
-# Read in data and transform datatypes to make corresponding postgres columns
-legislators = pd.read_pickle('data/current_legislators_df.pkl')
-social = pd.read_pickle('data/legislators_social_df.pkl')
-twitter_profiles = pd.read_pickle('data/twitter_profiles_df.pkl')
-tweets = pd.read_pickle('data/tweets_df.pkl')
+# To drop tables uncomment and run below
+"""
+Tweets.__table__.drop(engine)
+Social.__table__.drop(engine)
+TwitterProfiles.__table__.drop(engine)
+Legislators.__table__.drop(engine)
+"""

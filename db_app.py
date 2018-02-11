@@ -1,5 +1,5 @@
 from flask import Flask
-from helper_functions import TwAPI, db_create_engine
+from db_functions import TwAPI, db_create_engine
 import pandas as pd
 import yaml
 from sqlalchemy.ext.declarative import declarative_base
@@ -14,6 +14,9 @@ app = Flask(__name__)
 
 @app.cli.command()
 def initial_data_gather():
+    """
+    Gathers past 30 days legislator twitter data
+    """
 
     def profile_dataframe(profile_json):
         """
@@ -67,6 +70,7 @@ def initial_data_gather():
         return tweets_df
 
     # Import legislator YAML files as pandas dataframes
+    print('Begin data gathering...')
 
     with open('congress-legislators/legislators-current.yaml', 'r') as f:
         current_legis = pd.io.json.json_normalize(yaml.load(f))
@@ -74,9 +78,15 @@ def initial_data_gather():
     with open('congress-legislators/legislators-social-media.yaml', 'r') as f:
         social = pd.io.json.json_normalize(yaml.load(f))
 
-    # Pickle legislator data in dataframe format
-    current_legis.to_pickle('data/current_legislators_df.pkl')
-    social.to_pickle('data/legislators_social_df.pkl')
+    # Subset relevant columns and create target column
+    current_legis['party'] = [term[0]['party'] for term in current_legis['terms']]
+    legis_cols = ['id.bioguide', 'bio.birthday', 'bio.gender', 'bio.religion',
+                  'name.first', 'name.last', 'party']
+    social_cols = ['id.bioguide', 'social.facebook', 'social.twitter', 'social.twitter_id']
+
+    # Pickle data in dataframe format
+    current_legis[legis_cols].to_pickle('data/current_legislators_df.pkl')
+    social[social_cols].to_pickle('data/legislators_social_df.pkl')
 
     # Fetch corresponding Twitter data for legislators over past 30 days
 
@@ -104,18 +114,25 @@ def initial_data_gather():
     tweets_df = tweets_dataframe(time_lines)
     tweets_df.to_pickle('data/tweets_df.pkl')
 
+    print('Pickled data completed!')
+
 
 @app.cli.command()
-def iniital_data_load_db():
+def initial_data_load_db():
+    """
+    Populates db with legislator twitter data
+    """
 
     connection_name = input("Name config details in 'config.ini' file: ")
 
     Base = declarative_base()
-    engine = db_create_engine(config_file='config_ini',
+    engine = db_create_engine(config_file='config.ini',
                               conn_name=connection_name)
 
     Session = sessionmaker(bind=engine)
     session = Session()
+
+    print('Defining table classes now...')
 
     class Legislators(Base):
         __tablename__ = 'legislators'
@@ -172,6 +189,8 @@ def iniital_data_load_db():
 
     Base.metadata.create_all(engine)
 
+    print('Transforming data for ingest now...')
+
     # Read in data
     legislators = pd.read_pickle('data/current_legislators_df.pkl')
     social = pd.read_pickle('data/legislators_social_df.pkl')
@@ -188,7 +207,8 @@ def iniital_data_load_db():
                                 'name.last': 'last_name',
                                 'party': 'party'}, inplace=True)
 
-    legislators.to_sql(name='legislators', con=engine, flavor='postgres', if_exists='append', index=False)
+    print('Populating Legislators Table')
+    legislators.to_sql(name='legislators', con=engine, if_exists='append', index=False)
 
     # Populate Twitter Profiles table
     twitter_profiles['id'] = [str(x) for x in twitter_profiles['id']]
@@ -198,6 +218,7 @@ def iniital_data_load_db():
     twitter_profiles['friends_count'] = [int(x) for x in twitter_profiles['friends_count']]
     twitter_profiles['statuses_count'] = [int(x) for x in twitter_profiles['statuses_count']]
 
+    print('Populating Twitter Profiles Table')
     twitter_profiles.to_sql(name='twitter_profiles', con=engine, if_exists='append', index=False)
 
     # Populate Social table
@@ -208,6 +229,7 @@ def iniital_data_load_db():
                            'social.twitter': 'twitter_screen_name',
                            'social.twitter_id': 'twitter_id'}, inplace=True)
 
+    print('Populating Social Table')
     social.to_sql(name='social', con=engine, if_exists='append', index=False)
 
     # Populate Tweet table
@@ -234,14 +256,16 @@ def iniital_data_load_db():
                            'user_name': 'twitter_screen_name',
                            'tweet_text': 'text'}, inplace=True)
 
+    print('Populating Tweets Table (this may take several minutes... like 30)')
     tweets.to_sql(name='tweets', con=engine, if_exists='append', index=False)
 
     session.close_all()
+    print('Successfully created!')
 
 
 if __name__ == '__main__':
     initial_data_gather()
-    iniital_data_load_db()
+    initial_data_load_db()
 
 
 

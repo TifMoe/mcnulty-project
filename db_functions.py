@@ -20,11 +20,11 @@ def db_create_engine(config_file, conn_name):
     config.read(config_file)
 
     engine = create_engine('postgresql://{}:{}@{}:{}/{}'
-                           .format(config.get(conn_name, 'user'),
-                                   config.get(conn_name, 'password'),
-                                   config.get(conn_name, 'host'),
-                                   config.get(conn_name, 'port'),
-                                   config.get(conn_name, 'db')))
+                           .format(config.get('{}'.format(conn_name), 'user'),
+                                   config.get('{}'.format(conn_name), 'password'),
+                                   config.get('{}'.format(conn_name), 'host'),
+                                   config.get('{}'.format(conn_name), 'port'),
+                                   config.get('{}'.format(conn_name), 'db')))
 
     return engine
 

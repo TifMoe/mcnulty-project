@@ -87,13 +87,16 @@ class TwAPI:
         print('Starting', api.api.rate_limit_status()['resources']['users']['/users/lookup'])
 
         for batch in batches:
+            print('batch size:', len(batch))
 
             try:
                 profiles_batch = self.fetch_user_profiles(batch_lookups=batch)
                 profiles.extend(profiles_batch)
+                print('profile len:', len(profiles))
 
             except tweepy.error.TweepError as e:
                 if e.response.status_code == 404:
+                    print('404')
                     pass
                 else:
                     raise e
@@ -176,7 +179,7 @@ def profile_dataframe(profile_json):
     :return: Dataframe with columns for the id, created date, description, follower/tweet counts,
         location and name
     """
-    profiles_df = pd.DataFrame(columns=['id', 'created_at', 'name',
+    profiles_df = pd.DataFrame(columns=['id', 'created_at', 'screen_name',
                                         'description', 'location',
                                         'favourites_count', 'followers_count',
                                         'friends_count', 'statuses_count'])
@@ -184,7 +187,7 @@ def profile_dataframe(profile_json):
     for i, json in enumerate(profile_json):
         profiles_df.loc[i, "id"] = profile_json[i]['id']
         profiles_df.loc[i, "created_at"] = profile_json[i]['created_at']
-        profiles_df.loc[i, "name"] = profile_json[i]['name']
+        profiles_df.loc[i, "screen_name"] = profile_json[i]['screen_name']
         profiles_df.loc[i, "description"] = profile_json[i]['description']
         profiles_df.loc[i, "location"] = profile_json[i]['location']
         profiles_df.loc[i, "favourites_count"] = profile_json[i]['favourites_count']
@@ -210,7 +213,7 @@ profiles_df.to_pickle('data/twitter_profiles_df.pkl')
 time_lines = api.fetch_all_timelines(screen_names=tw_names, days_ago=30, include_rts=False)
 
 # Pickle raw tweet data
-with open('data/raw_twetes.pkl', 'wb') as f:
+with open('data/raw_tweets.pkl', 'wb') as f:
     pickle.dump(time_lines, f)
 
 
@@ -222,14 +225,14 @@ def tweets_dataframe(tweets_json):
     :return: Dataframe with columns for the id, created date, description, follower/tweet counts,
         location and name
     """
-    tweets_df = pd.DataFrame(columns=['tweet_id', 'user_id', 'created_at', 'hashtags',
-                                      'tweet_text', 'favorite_count', 'retweet_count',
-                                      'followers_count'])
+    tweets_df = pd.DataFrame(columns=['tweet_id', 'user_id', 'user_name', 'created_at', 'hashtags',
+                                      'tweet_text', 'favorite_count', 'retweet_count', 'followers_count'])
 
     for i, json in enumerate(tweets_json):
         print(i)
         tweets_df.loc[i, "tweet_id"] = tweets_json[i]['id']
         tweets_df.loc[i, "user_id"] = tweets_json[i]['user']['id']
+        tweets_df.loc[i, "user_name"] = tweets_json[i]['user']['screen_name']
         tweets_df.loc[i, "created_at"] = tweets_json[i]['created_at']
         tweets_df.loc[i, "hashtags"] = tweets_json[i]['entities']['hashtags']
         tweets_df.loc[i, "tweet_text"] = tweets_json[i]['full_text']

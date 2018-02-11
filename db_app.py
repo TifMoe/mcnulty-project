@@ -1,159 +1,19 @@
 from flask import Flask
-import os
-import click
+from helper_functions import TwAPI, db_create_engine
 import pandas as pd
 import yaml
-import tweepy
+from sqlalchemy.ext.declarative import declarative_base
 from configparser import ConfigParser
-from math import ceil
-import datetime
-import time
+from sqlalchemy.dialects.postgresql import INTEGER, VARCHAR, DATE, FLOAT
+from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy import Column, ForeignKey
+
 
 app = Flask(__name__)
 
 
 @app.cli.command()
 def initial_data_gather():
-
-    # Create class to access Twitter API
-    class TwAPI:
-
-        def __init__(self,
-                     access_token,
-                     access_token_secret,
-                     consumer_key,
-                     consumer_secret):
-            """
-            Initialize api client
-            """
-            self.auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-            self.auth.set_access_token(access_token, access_token_secret)
-            self.api = tweepy.API(self.auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
-
-        @staticmethod
-        def batch_profiles(profile_ids, batch_size):
-            """
-            Helper method to split list of twitter accounts into batches <= batch size
-            :param profile_identifier: List of twitter user_ids
-            :param batch_size: Maximum number of records in each batch
-            :return: A list of all twitter account batches
-            """
-            batches = []
-
-            for batch_idx in range(ceil(len(profile_ids) / batch_size)):
-                offset = batch_idx * batch_size
-                batch = profile_ids[offset:(offset + batch_size)]
-                batches.append(batch)
-
-            return batches
-
-        def fetch_user_profiles(self, batch_lookups):
-            """
-            Helper method to lookup each user in batch and return a list of the user's profile json
-            :param batch_lookups: batch of twitter user_ids to lookup
-            :return: list of profile data in json format
-            """
-            profile_list = []
-
-            for user in self.api.lookup_users(user_ids=batch_lookups):
-                profile_list.append(user._json)
-
-            return profile_list
-
-        def fetch_all_profiles(self, ids=[], batch_size=100):
-            """
-            A wrapper method around tweepy.API.lookup_users that handles the batch lookup of
-              screen_names. Assuming number of screen_names < 10000, this should not typically
-              run afoul of API limits
-
-            `api` is a tweepy.API handle
-            `screen_names` is a list of twitter screen names
-
-            Returns: a list of dicts representing Twitter profiles
-            """
-            profiles = []
-            batches = self.batch_profiles(profile_ids=ids, batch_size=batch_size)
-
-            # Check rate limit counter
-            print('Starting', self.api.rate_limit_status()['resources']['users']['/users/lookup'])
-
-            for batch in batches:
-                print('batch size:', len(batch))
-
-                try:
-                    profiles_batch = self.fetch_user_profiles(batch_lookups=batch)
-                    profiles.extend(profiles_batch)
-                    print('profile len:', len(profiles))
-
-                except tweepy.error.TweepError as e:
-                    if e.response.status_code == 404:
-                        print('404')
-                        pass
-                    else:
-                        raise e
-
-            # Check rate limit counter
-            print('Finished', self.api.rate_limit_status()['resources']['users']['/users/lookup'])
-
-            return profiles
-
-        @staticmethod
-        def limit_handled(cursor):
-            while True:
-                try:
-                    yield cursor.next()
-                except tweepy.RateLimitError:
-                    time.sleep(15 * 60)
-
-        def fetch_user_timeline(self, screen_name, days_ago, include_rts=False):
-            """"
-            Takes in a twitter screen name and returns all tweet data in json format for tweets created in the past X days
-            Parameter 'include_rts' to exclude or include retweets
-            Returns a list of json tweets
-            """
-            tweet_list = []
-
-            cursor = tweepy.Cursor(self.api.user_timeline, screen_name=screen_name,
-                                   include_rts=include_rts, tweet_mode="extended", count=200)
-            tweets = self.limit_handled(cursor.items())
-
-            for tweet in tweets:
-                if (datetime.datetime.now() - tweet.created_at).days < days_ago:
-                    tweet_list.append(tweet._json)
-                else:
-                    return tweet_list
-
-        def fetch_all_timelines(self, screen_names, days_ago, include_rts=False):
-            """
-            Take in
-            :param screen_names:
-            :param days_ago:
-            :param include_rts:
-            :return:
-            """
-            timeline_list = []
-            print('Starting', self.api.rate_limit_status()['resources']['statuses']['/statuses/user_timeline'])
-
-            for index, name in enumerate(screen_names):
-
-                print(index, name)
-                try:
-                    timeline = self.fetch_user_timeline(screen_name=name, days_ago=days_ago,
-                                                        include_rts=include_rts)
-
-                    if timeline:
-                        print('{} tweets in past {} days'.format(len(timeline), days_ago))
-                        timeline_list.extend(timeline)
-
-                except tweepy.error.TweepError as e:
-                    if e.response.status_code == 404:
-                        pass
-                    else:
-                        raise e
-
-            print('Finish', self.api.rate_limit_status()['resources']['statuses']['/statuses/user_timeline'])
-
-            return timeline_list
 
     def profile_dataframe(profile_json):
         """
@@ -245,9 +105,143 @@ def initial_data_gather():
     tweets_df.to_pickle('data/tweets_df.pkl')
 
 
+@app.cli.command()
+def iniital_data_load_db():
+
+    connection_name = input("Name config details in 'config.ini' file: ")
+
+    Base = declarative_base()
+    engine = db_create_engine(config_file='config_ini',
+                              conn_name=connection_name)
+
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    class Legislators(Base):
+        __tablename__ = 'legislators'
+        id = Column(VARCHAR(250), index=True, primary_key=True)
+        birthday = Column(DATE)
+        gender = Column(VARCHAR(1))
+        religion = Column(VARCHAR(250))
+        first_name = Column(VARCHAR(250))
+        last_name = Column(VARCHAR(250))
+        party = Column(VARCHAR(250))
+
+        social_accounts = relationship('Social')
+
+    class Social(Base):
+        __tablename__ = 'social'
+        legislator_id = Column(VARCHAR(250), ForeignKey('legislators.id'), primary_key=True)
+        facebook = Column(VARCHAR(250))
+        twitter_screen_name = Column(VARCHAR(250))
+        twitter_id = Column(VARCHAR(250))
+
+        # foreign key defined here to avoid foreign key constraint - not all twitter handles will have valid profiles
+        twitter_accounts = relationship('TwitterProfiles', foreign_keys=['id'],
+                                        primaryjoin='twitter_profiles.id == social.twitter_id')
+
+    class TwitterProfiles(Base):
+        __tablename__ = 'twitter_profiles'
+        id = Column(VARCHAR(250), primary_key=True)
+        created_at = Column(DATE)
+        screen_name = Column(VARCHAR(250))
+        description = Column(VARCHAR(250))
+        location = Column(VARCHAR(250))
+        favourites_count = Column(INTEGER)
+        followers_count = Column(INTEGER)
+        friends_count = Column(INTEGER)
+        statuses_count = Column(INTEGER)
+
+        tweets = relationship('Tweets')
+
+    class Tweets(Base):
+        __tablename__ = 'tweets'
+        id = Column(FLOAT, primary_key=True)
+        twitter_id = Column(VARCHAR(250))
+        twitter_screen_name = Column(VARCHAR(250))
+        created_at = Column(DATE)
+        hashtags = Column(VARCHAR(500))
+        text = Column(VARCHAR(500))
+        favorite_count = Column(INTEGER)
+        retweet_count = Column(INTEGER)
+        followers_count = Column(INTEGER)
+
+        # foreign key defined here to avoid foreign key constraint - not all twitter handles will have valid profiles
+        twitter_accounts = relationship('TwitterProfiles', foreign_keys=['twitter_screen_name'],
+                                        primaryjoin='tweets.twitter_screen_name == twitter_profiles.screen_name')
+
+    Base.metadata.create_all(engine)
+
+    # Read in data
+    legislators = pd.read_pickle('data/current_legislators_df.pkl')
+    social = pd.read_pickle('data/legislators_social_df.pkl')
+    twitter_profiles = pd.read_pickle('data/twitter_profiles_df.pkl')
+    tweets = pd.read_pickle('data/tweets_df.pkl')
+
+    # Populate Legislator table
+    legislators['bio.birthday'] = pd.to_datetime(legislators['bio.birthday'])
+    legislators.rename(columns={'id.bioguide': 'id',
+                                'bio.birthday': 'birthday',
+                                'bio.gender': 'gender',
+                                'bio.religion': 'religion',
+                                'name.first': 'first_name',
+                                'name.last': 'last_name',
+                                'party': 'party'}, inplace=True)
+
+    legislators.to_sql(name='legislators', con=engine, flavor='postgres', if_exists='append', index=False)
+
+    # Populate Twitter Profiles table
+    twitter_profiles['id'] = [str(x) for x in twitter_profiles['id']]
+    twitter_profiles['created_at'] = pd.to_datetime(twitter_profiles['created_at'])
+    twitter_profiles['favourites_count'] = [int(x) for x in twitter_profiles['favourites_count']]
+    twitter_profiles['followers_count'] = [int(x) for x in twitter_profiles['followers_count']]
+    twitter_profiles['friends_count'] = [int(x) for x in twitter_profiles['friends_count']]
+    twitter_profiles['statuses_count'] = [int(x) for x in twitter_profiles['statuses_count']]
+
+    twitter_profiles.to_sql(name='twitter_profiles', con=engine, if_exists='append', index=False)
+
+    # Populate Social table
+    social['social.twitter_id'] = [str(x) for x in social['social.twitter_id']]
+
+    social.rename(columns={'id.bioguide': 'legislator_id',
+                           'social.facebook': 'facebook',
+                           'social.twitter': 'twitter_screen_name',
+                           'social.twitter_id': 'twitter_id'}, inplace=True)
+
+    social.to_sql(name='social', con=engine, if_exists='append', index=False)
+
+    # Populate Tweet table
+    tweets['tweet_id'] = [float(x) for x in tweets['tweet_id']]
+    tweets['user_id'] = [str(x) for x in tweets['user_id']]
+    tweets['created_at'] = pd.to_datetime(tweets['created_at'])
+    tweets['favorite_count'] = [int(x) for x in tweets['favorite_count']]
+    tweets['retweet_count'] = [int(x) for x in tweets['retweet_count']]
+    tweets['followers_count'] = [int(x) for x in tweets['followers_count']]
+
+    # Parse out hashtag text into list
+    def list_hashtags(list_dicts):
+        hash_list = []
+
+        for dict in list_dicts:
+            hash_list.append(dict['text'])
+
+        return hash_list
+
+    tweets['hashtags'] = [list_hashtags(tag) for tag in tweets['hashtags']]
+
+    tweets.rename(columns={'tweet_id': 'id',
+                           'user_id': 'twitter_id',
+                           'user_name': 'twitter_screen_name',
+                           'tweet_text': 'text'}, inplace=True)
+
+    tweets.to_sql(name='tweets', con=engine, if_exists='append', index=False)
+
+    session.close_all()
+
+
 if __name__ == '__main__':
     initial_data_gather()
-
+    iniital_data_load_db()
 
 
 

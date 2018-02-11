@@ -1,8 +1,8 @@
 from sqlalchemy.dialects.postgresql import INTEGER, VARCHAR, DATE, FLOAT
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, ForeignKey, ForeignKeyConstraint
-from db_connect import db_create_engine
+from sqlalchemy import Column, ForeignKey
+from archive.db_connect import db_create_engine
 
 
 Base = declarative_base()

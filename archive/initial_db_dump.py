@@ -1,5 +1,5 @@
 import pandas as pd
-from db_connect import db_create_engine
+from archive.db_connect import db_create_engine
 from sqlalchemy.orm import sessionmaker
 
 engine = db_create_engine(config_file='config.ini',

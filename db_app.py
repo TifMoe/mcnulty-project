@@ -1,6 +1,7 @@
 from flask import Flask
 from db_functions import TwAPI, db_create_engine
 import pandas as pd
+import numpy as np
 import yaml
 from sqlalchemy.ext.declarative import declarative_base
 from configparser import ConfigParser
@@ -222,7 +223,7 @@ def initial_data_load_db():
     twitter_profiles.to_sql(name='twitter_profiles', con=engine, if_exists='append', index=False)
 
     # Populate Social table
-    social['social.twitter_id'] = [str(x) for x in social['social.twitter_id']]
+    social['social.twitter_id'] = [str(int(x)) if not np.isnan(x) else None for x in social['social.twitter_id']]
 
     social.rename(columns={'id.bioguide': 'legislator_id',
                            'social.facebook': 'facebook',

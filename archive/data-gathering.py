@@ -19,9 +19,16 @@ with open('congress-legislators/legislators-current.yaml', 'r') as f:
 with open('congress-legislators/legislators-social-media.yaml', 'r') as f:
     social = pd.io.json.json_normalize(yaml.load(f))
 
+# Subset relevant columns and create target column
+current_legis['party'] = [term[0]['party'] for term in current_legis['terms']]
+
+legis_cols = ['id.bioguide', 'bio.birthday', 'bio.gender', 'bio.religion',
+              'name.first', 'name.last', 'party']
+social_cols = ['id.bioguide', 'social.facebook', 'social.twitter', 'social.twitter_id']
+
 # Pickle data in dataframe format
-current_legis.to_pickle('data/current_legislators_df.pkl')
-social.to_pickle('data/legislators_social_df.pkl')
+current_legis[legis_cols].to_pickle('data/current_legislators_df.pkl')
+social[social_cols].to_pickle('data/legislators_social_df.pkl')
 
 
 # Create class to access Twitter API

@@ -173,6 +173,6 @@ class TwAPI:
 def drop_tables(table_list, engine):
 
     for table_name in table_list:
-        table_name.__table__.drop(engine)
+        eval(table_name).__table__.drop(engine)
     return True
 

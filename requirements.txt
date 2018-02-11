@@ -1,0 +1,6 @@
+flask==0.12.2
+tweepy==3.5.0
+sqlalchemy==1.1.13
+pandas==0.20.3
+numpy==1.14.0
+yaml==3.12

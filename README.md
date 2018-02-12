@@ -57,7 +57,7 @@ $ flask initial_data_gather # This will fetch twitter data from past 30 days for
 
 $ flask initial_data_load_db # This will create a Postgres database with legislator twitter data
 ```
-The **initial_data_gather** takes several minutes to load in all available tweets for legislators over the past 30 days. 
+The **initial_data_gather** takes up to 10 minutes to load in all available tweets for legislators over the past 30 days. 
 
 *Note: Please allow up to 30 minutes for the **initial_data_load_db** command to transform the twitter data, define appropriate tables and load data to your postgres db.*
 

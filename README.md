@@ -10,19 +10,19 @@
 
 ## Setup
 
-#### 1) Fork or clone this repo
+#### 1) Clone this repo
 ```bash
 $ git clone https://github.com/TifMoe/mcnulty-project.git
 ```
 
-#### 2) In cloned repo, clone current legislators YAML database from [this repository](https://github.com/unitedstates/congress-legislators) to create a 'congress-legislators' subdirectory
+#### 2) In your cloned repo, clone current legislators YAML database from [this repository](https://github.com/unitedstates/congress-legislators) to create a 'congress-legislators' subdirectory
 ```bash
 mcnulty-project$ git clone https://github.com/unitedstates/congress-legislators.git
 ```
 
-#### 3) Add a 'config.ini' file to the root directory of mcnulty-project
+#### 3) Add a file named 'config.ini' to the root directory of your cloned mcnulty-project
 ```
-# Example config file
+# Example 'config.ini' file
 
 [TwitterKeys]
 consumer_key=your_consumer_key_goes_here

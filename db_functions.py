@@ -92,12 +92,10 @@ class TwAPI:
         print('Starting', self.api.rate_limit_status()['resources']['users']['/users/lookup'])
 
         for batch in batches:
-            print('batch size:', len(batch))
 
             try:
                 profiles_batch = self.fetch_user_profiles(batch_lookups=batch)
                 profiles.extend(profiles_batch)
-                print('profile len:', len(profiles))
 
             except tweepy.error.TweepError as e:
                 if e.response.status_code == 404:
@@ -139,18 +137,17 @@ class TwAPI:
 
     def fetch_all_timelines(self, screen_names, days_ago, include_rts=False):
         """
-        Take in
-        :param screen_names:
-        :param days_ago:
-        :param include_rts:
-        :return:
+        Take in list of twitter screen names and fetch all tweets occurring in the past X days
+        :param screen_names: list of twitter screen names
+        :param days_ago: number of days to pull tweets from
+        :param include_rts: boolean indicator to include retweets
+        :return: list of tweets for accounts in list occurring in the past X days
         """
         timeline_list = []
-        print('Starting', self.api.rate_limit_status()['resources']['statuses']['/statuses/user_timeline'])
 
         for index, name in enumerate(screen_names):
 
-            print(index, name)
+            print('({})'.format(index), name)
             try:
                 timeline = self.fetch_user_timeline(screen_name=name, days_ago=days_ago,
                                                     include_rts=include_rts)
@@ -164,8 +161,6 @@ class TwAPI:
                     pass
                 else:
                     raise e
-
-        print('Finish', self.api.rate_limit_status()['resources']['statuses']['/statuses/user_timeline'])
 
         return timeline_list
 

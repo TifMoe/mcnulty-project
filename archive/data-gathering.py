@@ -141,18 +141,17 @@ class TwAPI:
 
     def fetch_all_timelines(self, screen_names, days_ago, include_rts=False):
         """
-        Take in
-        :param screen_names:
-        :param days_ago:
+        Take in list of twitter screen names and fetch all tweets occurring in the past X days
+        :param screen_names: list of twitter screen names
+        :param days_ago: number of days to
         :param include_rts:
         :return:
         """
         timeline_list = []
-        print('Starting', self.api.rate_limit_status()['resources']['statuses']['/statuses/user_timeline'])
 
         for index, name in enumerate(screen_names):
 
-            print(index, name)
+            print('({})'.format(index), name)
             try:
                 timeline = self.fetch_user_timeline(screen_name=name, days_ago=days_ago,
                                                     include_rts=include_rts)
@@ -236,7 +235,6 @@ def tweets_dataframe(tweets_json):
                                       'tweet_text', 'favorite_count', 'retweet_count', 'followers_count'])
 
     for i, json in enumerate(tweets_json):
-        print(i)
         tweets_df.loc[i, "tweet_id"] = tweets_json[i]['id']
         tweets_df.loc[i, "user_id"] = tweets_json[i]['user']['id']
         tweets_df.loc[i, "user_name"] = tweets_json[i]['user']['screen_name']

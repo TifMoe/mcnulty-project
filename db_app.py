@@ -57,7 +57,6 @@ def initial_data_gather():
                                           'tweet_text', 'favorite_count', 'retweet_count', 'followers_count'])
 
         for i, json in enumerate(tweets_json):
-            print(i)
             tweets_df.loc[i, "tweet_id"] = tweets_json[i]['id']
             tweets_df.loc[i, "user_id"] = tweets_json[i]['user']['id']
             tweets_df.loc[i, "user_name"] = tweets_json[i]['user']['screen_name']

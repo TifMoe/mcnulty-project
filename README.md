@@ -10,19 +10,19 @@
 
 ## Setup
 
-#### 1) Fork or clone this repo
+#### 1) Clone this repo
 ```bash
 $ git clone https://github.com/TifMoe/mcnulty-project.git
 ```
 
-#### 2) In cloned repo, clone current legislators YAML database from [this repository](https://github.com/unitedstates/congress-legislators) to create a 'congress-legislators' subdirectory
+#### 2) In your cloned repo, clone current legislators YAML database from [this repository](https://github.com/unitedstates/congress-legislators) to create a 'congress-legislators' subdirectory
 ```bash
 mcnulty-project$ git clone https://github.com/unitedstates/congress-legislators.git
 ```
 
-#### 3) Add a 'config.ini' file to the root directory of mcnulty-project
+#### 3) Add a file named 'config.ini' to the root directory of your cloned mcnulty-project
 ```
-# Example config file
+# Example 'config.ini' file
 
 [TwitterKeys]
 consumer_key=your_consumer_key_goes_here
@@ -49,16 +49,13 @@ $ pip install -r requirements.txt
 ```
 
 #### 2) Export the flask app to fetch twitter data and populate database
-```bassh
-
+```bash
 $ export FLASK_APP=/yourfilepathtoclonedrepo/mcnulty-project/db_app.py
 
 $ flask initial_data_gather # This will fetch twitter data from past 30 days for all available legislators in YAML db
 
 $ flask initial_data_load_db # This will create a Postgres database with legislator twitter data
 ```
-The **initial_data_gather** takes up to 10 minutes to load in all available tweets for legislators over the past 30 days. 
-
-*Note: Please allow up to 30 minutes for the **initial_data_load_db** command to transform the twitter data, define appropriate tables and load data to your postgres db.*
+*Note: Please allow up to 30 minutes each for the **initial_data_gather** and **initial_data_load_db** commands to fetch and transform the twitter data then define appropriate table schema and load data to your postgres db.*
 
 

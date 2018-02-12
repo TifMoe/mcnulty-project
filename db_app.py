@@ -260,7 +260,7 @@ def initial_data_load_db():
     tweets.to_sql(name='tweets', con=engine, if_exists='append', index=False)
 
     session.close_all()
-    print('Successfully created!')
+    print('Database successfully created!')
 
 
 if __name__ == '__main__':

@@ -29,8 +29,8 @@ legislators_sql = """
             GROUP BY 1
         )
     
-    SELECT *
-    FROM officials_stats
-    LEFT JOIN tweet_count 
-        ON officials_stats.twitter_id = tweet_count.twitter_id;
+    SELECT o.*, t.tweet_count, t.tweet_fav_count, t.retweet_count
+    FROM officials_stats as o
+    LEFT JOIN tweet_count as t
+        ON o.twitter_id = t.twitter_id;
 """

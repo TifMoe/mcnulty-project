@@ -34,3 +34,19 @@ legislators_sql = """
     LEFT JOIN tweet_count as t
         ON o.twitter_id = t.twitter_id;
 """
+
+tweets_sql = """
+    SELECT l.first_name || ' ' || l.last_name as name,
+        l.party,
+        l.gender,
+        t.text,
+        t.hashtags,
+        t.created_at,
+        t.favorite_count,
+        t.retweet_count
+    FROM tweets t
+    LEFT JOIN social s
+        ON t.twitter_screen_name = s.twitter_screen_name
+    LEFT JOIN legislators l
+        ON s.legislator_id = l.id;
+"""

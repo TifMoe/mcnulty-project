@@ -1,6 +1,6 @@
 import tweepy
-from math import ceil
-import datetime
+import pandas as pd
+from datetime import datetime
 import time
 from sqlalchemy import create_engine
 from configparser import ConfigParser
@@ -45,71 +45,6 @@ class TwAPI:
         self.api = tweepy.API(self.auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
 
     @staticmethod
-    def batch_profiles(profile_ids, batch_size):
-        """
-        Helper method to split list of twitter accounts into batches <= batch size
-        :param profile_identifier: List of twitter user_ids
-        :param batch_size: Maximum number of records in each batch
-        :return: A list of all twitter account batches
-        """
-        batches = []
-
-        for batch_idx in range(ceil(len(profile_ids) / batch_size)):
-            offset = batch_idx * batch_size
-            batch = profile_ids[offset:(offset + batch_size)]
-            batches.append(batch)
-
-        return batches
-
-    def fetch_user_profiles(self, batch_lookups):
-        """
-        Helper method to lookup each user in batch and return a list of the user's profile json
-        :param batch_lookups: batch of twitter user_ids to lookup
-        :return: list of profile data in json format
-        """
-        profile_list = []
-
-        for user in self.api.lookup_users(user_ids=batch_lookups):
-            profile_list.append(user._json)
-
-        return profile_list
-
-    def fetch_all_profiles(self, ids=[], batch_size=100):
-        """
-        A wrapper method around tweepy.API.lookup_users that handles the batch lookup of
-          screen_names. Assuming number of screen_names < 10000, this should not typically
-          run afoul of API limits
-
-        `api` is a tweepy.API handle
-        `screen_names` is a list of twitter screen names
-
-        Returns: a list of dicts representing Twitter profiles
-        """
-        profiles = []
-        batches = self.batch_profiles(profile_ids=ids, batch_size=batch_size)
-
-        # Check rate limit counter
-        print('Starting', self.api.rate_limit_status()['resources']['users']['/users/lookup'])
-
-        for batch in batches:
-
-            try:
-                profiles_batch = self.fetch_user_profiles(batch_lookups=batch)
-                profiles.extend(profiles_batch)
-
-            except tweepy.error.TweepError as e:
-                if e.response.status_code == 404:
-                    print('404')
-                    pass
-                else:
-                    raise e
-
-        # Check rate limit counter
-        print('Finished', self.api.rate_limit_status()['resources']['users']['/users/lookup'])
-
-        return profiles
-
-    @staticmethod
     def limit_handled(cursor):
         while True:
             try:
@@ -117,7 +52,7 @@ class TwAPI:
             except tweepy.RateLimitError:
                 time.sleep(15 * 60)
 
-    def fetch_user_timeline(self, screen_name, days_ago, include_rts=False):
+    def fetch_user_timeline(self, screen_name, last_date, include_rts=False):
         """"
         Takes in a twitter screen name and returns all tweet data in json format for tweets created in the past X days
         Parameter 'include_rts' to exclude or include retweets
@@ -130,12 +65,12 @@ class TwAPI:
         tweets = self.limit_handled(cursor.items())
 
         for tweet in tweets:
-            if (datetime.datetime.now() - tweet.created_at).days < days_ago:
+            if tweet.created_at > last_date:
                 tweet_list.append(tweet._json)
             else:
                 return tweet_list
 
-    def fetch_all_timelines(self, screen_names, days_ago, include_rts=False):
+    def fetch_all_timelines(self, screen_names, last_date, include_rts=False):
         """
         Take in list of twitter screen names and fetch all tweets occurring in the past X days
         :param screen_names: list of twitter screen names
@@ -147,13 +82,10 @@ class TwAPI:
 
         for index, name in enumerate(screen_names):
 
-            print('({})'.format(index), name)
             try:
-                timeline = self.fetch_user_timeline(screen_name=name, days_ago=days_ago,
+                timeline = self.fetch_user_timeline(screen_name=name, last_date=last_date,
                                                     include_rts=include_rts)
-
                 if timeline:
-                    print('{} tweets in past {} days'.format(len(timeline), days_ago))
                     timeline_list.extend(timeline)
 
             except tweepy.error.TweepError as e:
@@ -165,9 +97,90 @@ class TwAPI:
         return timeline_list
 
 
+# Parse out hashtag text into list
+def list_hashtags(list_dicts):
+    hash_list = []
+
+    for dict in list_dicts:
+        hash_list.append(dict['text'])
+
+    return hash_list
+
+
+# Parse out user mentions text into list
+def list_mentions(list_dicts):
+    mentions_list = []
+
+    for dict in list_dicts:
+        mentions_list.append(dict['screen_name'])
+
+    return mentions_list
+
+
+# Parse out media tags into list of types
+def list_media(list_dicts):
+    media_types = []
+
+    # check for nan values
+    if list_dicts != list_dicts:
+        return []
+
+    for dict in list_dicts:
+        media_types.append(dict['type'])
+
+    return media_types
+
+
+def create_dataframes_from_tweet_json(tweet_json):
+    """
+    Function to transform tweet data in json format into tabular format and subset relevant
+    information for tweets dataframe and users dataframe
+    :param tweet_json: Json tweet data - a list of dictionaries containing tweet data
+    :return: A dataframe for all relevant tweet data and a dataframe with updated user profiles
+    """
+
+    wide_tweets_df = pd.io.json.json_normalize(tweet_json)
+
+    tweet_cols = ['created_at', 'display_text_range', 'entities.hashtags',
+                  'entities.media', 'entities.user_mentions',
+                  'favorite_count', 'full_text', 'id', 'lang', 'retweet_count', 'user.screen_name']
+
+    user_cols = ['user.created_at', 'user.description', 'user.favourites_count',
+                 'user.followers_count', 'user.friends_count', 'user.id',
+                 'user.location',  'user.profile_image_url',
+                 'user.statuses_count', 'user.time_zone']
+
+    tweets_df = wide_tweets_df.loc[:, tweet_cols + user_cols]
+
+    # Parse text range, hashtags, media and user mentions
+    tweets_df['text_length'] = [i[1] for i in tweets_df['display_text_range']]
+    tweets_df['hashtags'] = [list_hashtags(tag) for tag in tweets_df['entities.hashtags']]
+    tweets_df['media_type'] = [list_media(tag) for tag in tweets_df['entities.media']]
+    tweets_df['user_mentions'] = [list_mentions(tag) for tag in tweets_df['entities.user_mentions']]
+    tweets_df['time_collected'] = datetime.now()
+
+    # Cleanup
+    tweets_df.drop(['display_text_range', 'entities.hashtags',
+                    'entities.media', 'entities.user_mentions'], axis=1, inplace=True)
+    tweets_df.reset_index(drop=True, inplace=True)
+
+    # Break user profile data out into users dataframe and drop duplciates
+    users_df = tweets_df.loc[:, user_cols + ['time_collected', 'user.screen_name']]
+    users_df.drop_duplicates(keep='first',
+                             subset=['time_collected', 'user.screen_name'],
+                             inplace=True)
+    tweets_df.drop(user_cols, axis=1, inplace=True)
+
+    return users_df, tweets_df
+
+
 def drop_tables(table_list, engine):
 
     for table_name in table_list:
         eval(table_name).__table__.drop(engine)
     return True
+
+#tables = ['Social', 'Legislators', 'TwitterProfiles', 'Tweets']
+#drop_tables(tables, engine=db_create_engine(config_file='config.ini',
+#                                             conn_name='PostgresConfig'))
 

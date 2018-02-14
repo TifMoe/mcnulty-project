@@ -56,6 +56,6 @@ $ flask initial_data_gather # This will fetch twitter data from past 30 days for
 
 $ flask initial_data_load_db # This will create a Postgres database with legislator twitter data
 ```
-*Note: Please allow up to 30 minutes each for the **initial_data_gather** and **initial_data_load_db** commands to fetch and transform the twitter data then define appropriate table schema and load data to your postgres db.*
+*Note: Please allow up to 40 minutes for the **initial_data_gather** and **initial_data_load_db** commands to fetch and transform the twitter data then define appropriate table schema and load data to your postgres db.*
 
 

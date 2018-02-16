@@ -1,5 +1,4 @@
 from flask import Flask
-from db_functions import TwAPI, db_create_engine, create_dataframes_from_tweet_json
 import pandas as pd
 import numpy as np
 import pickle
@@ -12,6 +11,7 @@ from sqlalchemy.dialects.postgresql import INTEGER, VARCHAR, DATE, FLOAT
 from sqlalchemy.types import DateTime
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import Column, ForeignKey
+from db_functions import TwAPI, db_create_engine, create_dataframes_from_tweet_json
 
 
 app = Flask(__name__)
@@ -181,11 +181,19 @@ def initial_data_load_db():
     user_profile_log['id'] = [str(x) for x in user_profile_log['id']]
     user_profile_log['created_at'] = pd.to_datetime(user_profile_log['created_at'])
 
+    #########
+    # Need to make twitter_screen_name lowercase
+    #########
+
     print('Populating User Profile Log Table')
     user_profile_log.to_sql(name='user_profile_log', con=engine, if_exists='append', index=False)
 
     # Populate SOCIAL table
     social['social.twitter_id'] = [str(int(x)) if not np.isnan(x) else None for x in social['social.twitter_id']]
+    #########
+    # Need to make social.twitter_screen_name lowercase
+    #########
+
     social.rename(columns={'id.bioguide': 'legislator_id',
                            'social.facebook': 'facebook',
                            'social.twitter': 'twitter_screen_name',
@@ -200,6 +208,10 @@ def initial_data_load_db():
 
     tweets.rename(columns={'user.screen_name': 'twitter_screen_name',
                            'full_text': 'text'}, inplace=True)
+
+    #########
+    # Need to make twitter_screen_name lowercase
+    #########
 
     print('Populating Tweets Table (this may take several minutes... like 30)')
     tweets.to_sql(name='tweets', con=engine, if_exists='append', index=False)

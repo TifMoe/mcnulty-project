@@ -11,12 +11,27 @@ from collections import Counter
 wordnet_lemma = WordNetLemmatizer()
 
 
+def fetch_all_tweets(config_file, conn_name):
+    """
+    Utility function to fetch tweet data from Postgres
+    :param config_file: commonly 'config.ini' - file where config details are stored
+    :param conn_name: section in config file with db connection and config details
+    :return: pandas dataframe with all tweets
+    """
+    print('Connecting to database...')
+    engine = db_create_engine(config_file=config_file,
+                              conn_name=conn_name)
+
+    print('Fetching all tweets...')
+    all_tweets = pd.read_sql_query(sql=tweets_sql, con=engine)
+
+    return all_tweets
+
+
 def remove_urls_punct(tweet):
     """
     Utility function to clean tweet text by removing links, special characters
     using simple regex statements.
-    :param tweet:
-    :return:
     """
     # 1. Remove all urls
     remove_urls = re.sub(r"http\S+", "", tweet)
@@ -62,6 +77,7 @@ def generate_features(df):
     :param df: Dataframe with tweet data, including columns for created_at, media_type and text
     :return:
     """
+    print('Generating base features...')
     df['hour_created'] = [i.time().hour for i in df['created_at']]
     df['weekday_created'] = [i.weekday() for i in df['created_at']]
     df['photo_exists'] = [1 if 'photo' in media else 0 for media in df['media_type']]
@@ -83,33 +99,7 @@ def generate_features(df):
     return df[relevant_cols], df
 
 
-def fetch_all_tweets(config_file, conn_name):
-    """
-    Utility function to fetch tweet data from Postgres
-    :param config_file: commonly 'config.ini' - file where config details are stored
-    :param conn_name: section in config file with db connection and config details
-    :return: pandas dataframe with all tweets
-    """
-    engine = db_create_engine(config_file=config_file,
-                              conn_name=conn_name)
-
-    all_tweets = pd.read_sql_query(sql=tweets_sql, con=engine)
-
-    return all_tweets
-
-
-def pickle_base_features(tweets):
-    """
-    Utility function to transform and pickle raw tweet data as feature/target matrix
-    :param tweets:
-    :return:
-    """
-    features, all_df = generate_features(tweets)
-
-    features.to_pickle('data/feature_engineering.pkl')
-    all_df.to_csv('data/all_feature_engineering.csv')
-
-
+# Functions for quantifying most common hashtags and user mentions
 def all_elements(column):
     """
     Takes a column containing a row-wise list of elements, removes any braces and splits each element
@@ -127,15 +117,23 @@ def all_elements(column):
     return elements_list
 
 
-def find_most_common_elements(list_elements, find_top_x):
+def find_most_common_elements(column, find_top_x):
     """
     Takes in list of elements and returns the top x most common
     """
-    count_elements = Counter(list_elements)
+    exploded_list = all_elements(column)
+    count_elements = Counter(exploded_list)
     return count_elements.most_common(find_top_x)
 
 
+# Functions for cleaning and tokenizing raw tweet text
 def clean_tweets(tweets):
+    """
+    Takes in list of tweets and cleans the text by removing urls and punctuation, converting to lowercase string,
+    removes stop words, lemmatizes and joins back into list of cleaned tweets
+    :param tweets: list of raw tweet text
+    :return: list of cleaned tweet text
+    """
     cleaned_tweets = []
 
     for i in tweets:
@@ -147,7 +145,7 @@ def clean_tweets(tweets):
         uni = [str(i) for i in clean.lower().split()]
 
         # 3. Remove english stop words
-        stops = set(stopwords.words("english"))
+        stops = set(stopwords.words("english") + ['amp'])
         meaningful_words = [w for w in uni if not w in stops]
 
         # 4. Create lemmas for meaningful words
@@ -160,6 +158,11 @@ def clean_tweets(tweets):
 
 
 def tokenize_tweets(tweets):
+    """
+    Takes in list of raw tweets, cleans the text and tokenizes words.
+    :param tweets: List of raw tweets
+    :return: List of cleaned, tokenized words
+    """
     tweet_tokens = []
 
     for i in clean_tweets(tweets):
@@ -170,11 +173,37 @@ def tokenize_tweets(tweets):
     return tweet_tokens
 
 
-# Find Features
-def find_features(job, feature_set):
+def find_top_used_words(tokenized_text, top_x):
+    """
+    Finds top most commonly used words in corpus of text
+    :param training_text: List of tweets from training set
+    :param top_x: Integer to indicate top X words from training corpus
+    :return: Feature set for most common words in training set
+    """
+    all_words = []
+
+    for tweet in tokenized_text:
+        for w in tweet:
+            all_words.append(w)
+
+    word_counts = nltk.FreqDist(all_words)
+    word_features = [i[0] for i in list(word_counts.most_common(top_x))]
+
+    return word_features
+
+
+def find_text_features(tweet, feature_set):
+    """
+    Utility function to indicate if text contains word feature from feature set
+    :param tweet: A single tweet to search for word features
+    :param feature_set: Set of top words used in corpus of training text
+    :return: Boolean indicator for each feature in feature set to indicate if feature word in tweet text
+    """
     features = {}
     for w in feature_set:
-        features[w] = (w in job)
+        features[w] = (w in tweet)
 
     return features
+
+
 

@@ -50,7 +50,7 @@ $ pip install -r requirements.txt
 
 #### 2) Export the flask app to fetch twitter data and populate database
 ```bash
-$ export FLASK_APP=/yourfilepathtoclonedrepo/mcnulty-project/db_app.py
+$ export FLASK_APP=/yourfilepathtoclonedrepo/mcnulty-project/src/data/db_app.py
 
 $ flask initial_data_gather # This will fetch twitter data from past 30 days for all available legislators in YAML db
 

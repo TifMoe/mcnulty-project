@@ -1,6 +1,6 @@
-from sql_queries import tweets_sql
+from src.data.sql_queries import tweets_sql
 import pandas as pd
-from db_functions import db_create_engine
+from src.data.db_functions import db_create_engine
 from textblob import TextBlob
 import re
 from nltk.corpus import stopwords
@@ -117,13 +117,16 @@ def all_elements(column):
     return elements_list
 
 
-def find_most_common_elements(column, find_top_x):
+def find_most_common_elements(column, top_x):
     """
     Takes in list of elements and returns the top x most common
     """
     exploded_list = all_elements(column)
     count_elements = Counter(exploded_list)
-    return count_elements.most_common(find_top_x)
+
+    top_features = [i[0] for i in list(count_elements.most_common(top_x))]
+
+    return top_features
 
 
 # Functions for cleaning and tokenizing raw tweet text

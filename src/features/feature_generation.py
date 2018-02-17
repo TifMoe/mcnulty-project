@@ -1,13 +1,13 @@
-import feature_functions as feat_funcs
+from src.features import feature_functions as feat_funcs
 from sklearn.model_selection import train_test_split
 import pickle
+import nltk
 
 # Pickle base features (non-text)
 all_tweets = feat_funcs.fetch_all_tweets(config_file='config.ini',
                                          conn_name='PostgresConfig')
 
 relevant_features, all_possible_features = feat_funcs.generate_features(all_tweets)
-
 relevant_features.to_pickle('data/feature_engineering.pkl')
 all_possible_features.to_csv('data/all_feature_engineering.csv')
 
@@ -42,3 +42,9 @@ with open('data/train_text_features.pkl', 'wb') as wf:
 
 with open('data/test_text_features.pkl', 'wb') as wf:
     pickle.dump(test_set, wf)
+
+# Train Naive Bayes classifier on training feature set to see most informative features
+classifier = nltk.NaiveBayesClassifier.train(train_set)
+
+print("Classifier percent accuracy:", (nltk.classify.accuracy(classifier, test_set))*100)
+classifier.show_most_informative_features(50)

@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import INTEGER, VARCHAR, DATE, FLOAT
 from sqlalchemy.types import DateTime
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import Column, ForeignKey
-from db_functions import TwAPI, db_create_engine, create_dataframes_from_tweet_json
+from src.data.db_functions import TwAPI, db_create_engine, create_dataframes_from_tweet_json
 
 
 app = Flask(__name__)
@@ -38,8 +38,8 @@ def initial_data_gather():
     social_cols = ['id.bioguide', 'social.facebook', 'social.twitter', 'social.twitter_id']
 
     # Pickle data in dataframe format
-    current_legis[legis_cols].to_pickle('data/current_legislators_df.pkl')
-    social[social_cols].to_pickle('data/legislators_social_df.pkl')
+    current_legis[legis_cols].to_pickle('data/interim/current_legislators_df.pkl')
+    social[social_cols].to_pickle('data/interim/legislators_social_df.pkl')
     print('Legislator data pickled!')
 
     def pickle_legislator_tweets(config_file, list_screen_names, last_date):
@@ -59,12 +59,12 @@ def initial_data_gather():
                                              last_date=last_date,
                                              include_rts=False)
 
-        with gzip.open('data/raw_tweets.pickle', 'wb') as file:
+        with gzip.open('data/raw/raw_tweets.pickle', 'wb') as file:
             pickle.dump(time_lines, file)
 
         users_df, tweets_df = create_dataframes_from_tweet_json(time_lines)
-        tweets_df.to_pickle('data/tweets_df.pkl')
-        users_df.to_pickle('data/users_df.pkl')
+        tweets_df.to_pickle('data/interim/tweets_df.pkl')
+        users_df.to_pickle('data/interim/users_df.pkl')
 
         print('Pickled data completed!')
 
@@ -157,10 +157,10 @@ def initial_data_load_db():
     print('Transforming data for ingest now...')
 
     # Read in data
-    legislators = pd.read_pickle('data/current_legislators_df.pkl')
-    social = pd.read_pickle('data/legislators_social_df.pkl')
-    user_profile_log = pd.read_pickle('data/users_df.pkl')
-    tweets = pd.read_pickle('data/tweets_df.pkl')
+    legislators = pd.read_pickle('data/interim/current_legislators_df.pkl')
+    social = pd.read_pickle('data/interim/legislators_social_df.pkl')
+    user_profile_log = pd.read_pickle('data/interim/users_df.pkl')
+    tweets = pd.read_pickle('data/interim/tweets_df.pkl')
 
     # Populate LEGISLATOR table
     legislators['bio.birthday'] = pd.to_datetime(legislators['bio.birthday'])
@@ -223,6 +223,3 @@ def initial_data_load_db():
 if __name__ == '__main__':
     initial_data_gather()
     initial_data_load_db()
-
-
-

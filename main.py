@@ -1,7 +1,6 @@
 from flask import Flask, request, render_template
 from predict_party import dem_or_rep
-from fetch_tweet_features import generate_tweet_features, fetch_tweet_info
-import os
+from src.features.fetch_tweet_features import generate_tweet_features, fetch_tweet_info
 
 
 # create a flask object

@@ -35,11 +35,34 @@ legislators_sql = """
         ON o.twitter_id = t.twitter_id;
 """
 
+past_week_tweets_sql = """
+    SELECT l.first_name || ' ' || l.last_name as name,
+        l.party,
+        t.tweet_id,
+        t.twitter_screen_name,
+        t.created_at,
+        t.hashtags,
+        t.text,
+        t.text_length,
+        t.user_mentions,
+        t.favorite_count,
+        t.retweet_count,
+        t.media_type,
+        t.time_collected
+    FROM tweets t
+    LEFT JOIN social s
+        ON lower(t.twitter_screen_name) = lower(s.twitter_screen_name)
+    LEFT JOIN legislators l
+        ON s.legislator_id = l.legislator_id
+    WHERE l.party <> 'Independent'
+        AND DATE(t.created_at) >= DATE(localtimestamp - INTERVAL '7 day');
+"""
+
 tweets_sql = """
     SELECT l.first_name || ' ' || l.last_name as name,
         l.party,
         l.gender,
-        t.id,
+        t.tweet_id,
         t.twitter_screen_name,
         t.created_at,
         t.hashtags,
@@ -53,9 +76,9 @@ tweets_sql = """
         MAX(u.followers_count) as user_followers
     FROM tweets t
     LEFT JOIN social s
-        ON lower(t.twitter_screen_name) = lower(s.twitter_screen_name)
+        ON t.twitter_screen_name = s.twitter_screen_name
     LEFT JOIN legislators l
-        ON s.legislator_id = l.id
+        ON s.legislator_id = l.legislator_id
     LEFT JOIN user_profile_log u
         ON (t.twitter_screen_name = u.screen_name AND DATE(t.time_collected) = DATE(u.time_collected))
     GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,13,14;

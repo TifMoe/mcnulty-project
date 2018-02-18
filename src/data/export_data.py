@@ -2,7 +2,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 from src.data.db_functions import db_create_engine
-from src.data.sql_queries import legislators_sql, tweets_sql
+from src.data.sql_queries import legislators_sql, tweets_sql, past_week_tweets_sql
 
 # Initialize connection to google sheets
 scope = ['https://spreadsheets.google.com/feeds']

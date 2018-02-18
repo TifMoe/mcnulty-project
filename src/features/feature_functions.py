@@ -98,7 +98,7 @@ def generate_features(df):
         df.drop(drop_rows, inplace=True)
 
     except KeyError:
-        relevant_cols = ['tweet_id', 'hour_created', 'weekday_created',
+        relevant_cols = ['hour_created', 'weekday_created',
                          'photo_exists', 'tweet_sentiment', 'retweets_per_followers',
                          'favs_per_followers', 'rate_all_caps', 'retweet_count',
                          'favorite_count', 'text_length']

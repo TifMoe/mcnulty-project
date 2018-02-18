@@ -21,14 +21,13 @@ def render_message():
 
     # User-entered URL
     url = request.form['tweet_url']
-    print(url)
 
     # Error message if not valid Tweet URL
     messages = ["Please enter a valid URL for a single Tweet"]
 
     # Generate features from tweet
     try:
-        tweet_info = fetch_tweet_info(url[0])
+        tweet_info = fetch_tweet_info(url)
         features, display_info = generate_tweet_features(tweet_info)
     except:
         return render_template('index.html', message=messages[0])

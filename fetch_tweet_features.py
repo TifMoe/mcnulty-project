@@ -1,5 +1,5 @@
-from ..data.db_functions import TwAPI, create_dataframes_from_tweet_json
-from ..features.feature_functions import generate_features
+from src.data.db_functions import TwAPI, create_dataframes_from_tweet_json
+from src.features.feature_functions import generate_features
 from configparser import ConfigParser
 import pandas as pd
 import numpy as np
@@ -50,8 +50,6 @@ def generate_tweet_features(tweet_json):
     :return: feature array for prediction and dictionary with tweet display info
     """
 
-    _, tweet_df = create_dataframes_from_tweet_json(tweet_json)
-
     name = tweet_json['user']['name']
     profile_image = tweet_json['user']['profile_image_url_https']
     profile_banner = tweet_json['user']['profile_banner_url']
@@ -60,7 +58,9 @@ def generate_tweet_features(tweet_json):
     display_info = {'name': name, 'profile_image': profile_image,
                     'profile_banner': profile_banner, 'tweet_text': tweet_text}
 
-    tweet_df['user_followers'] = tweet_df['user']['followers_count']
+    _, tweet_df = create_dataframes_from_tweet_json(tweet_json)
+
+    tweet_df['user_followers'] = tweet_json['user']['followers_count']
     tweet_df['created_at'] = pd.to_datetime(tweet_df['created_at'])
     tweet_df.rename(columns={'id': 'tweet_id',
                              'user.screen_name': 'twitter_screen_name',

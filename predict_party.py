@@ -1,23 +1,27 @@
 import pickle
-import numpy as np
+from src.models.ensemble_models import ensemble_base_text_models
 
-# read in the model
+# read in the models
 with open("models/gcb_clf_base_features.pkl", "rb") as mdl:
-    clf = pickle.load(mdl)
+    base_model = pickle.load(mdl)
+
+with open("models/nb_clf_text_features.pkl", "rb") as mdl:
+    text_model = pickle.load(mdl)
 
 
 # create a function to take in user-entered amounts and apply the model
-def dem_or_rep(input_df, model=clf):
-
-    reshaped_input = np.array(input_df).reshape(1, -1)
+def dem_or_rep(base_features, text_features,
+               base_model=base_model, text_model=text_model):
 
     # make a prediction
-    prediction = model.predict(reshaped_input)[0]
-    predict_prob = model.predict_proba(reshaped_input)[0]
+    predict_prob, prediction = ensemble_base_text_models(base_features=base_features,
+                                                         text_features=text_features,
+                                                         base_model=base_model,
+                                                         text_model=text_model)
 
     # return a message
-    message_array = ["I'm {}% sure you're a Democrat!".format(round(predict_prob[0]*100, 2)),
-                     "I'm {}% sure you're a Republican!".format(round(predict_prob[1]*100, 2))]
+    message_array = ["I'm {}% sure you're a Democrat!".format(round((1-predict_prob)*100, 2)),
+                     "I'm {}% sure you're a Republican!".format(round(predict_prob*100, 2))]
 
     party_color = ['blue', 'red']
 

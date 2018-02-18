@@ -27,12 +27,12 @@ def render_message():
     # Generate features from tweet
     try:
         tweet_info = fetch_tweet_info(url)
-        features, display_info = generate_tweet_features(tweet_info)
+        base_features, text_features, display_info = generate_tweet_features(tweet_info)
     except:
         return render_template('index.html', message=messages[0])
 
     # show user final message
-    final_message, party = dem_or_rep(features)
+    final_message, party = dem_or_rep(base_features, text_features)
     return render_template('index.html', message=final_message, party_color=party)
 
 

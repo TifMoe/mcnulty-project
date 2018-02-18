@@ -1,17 +1,16 @@
 from flask import Flask
 import pandas as pd
-import numpy as np
 import pickle
 from datetime import datetime, timedelta
 import gzip
 import yaml
 from sqlalchemy.ext.declarative import declarative_base
 from configparser import ConfigParser
-from sqlalchemy.dialects.postgresql import INTEGER, VARCHAR, DATE, FLOAT
+from sqlalchemy.dialects.postgresql import INTEGER, VARCHAR, DATE
 from sqlalchemy.types import DateTime
 from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy import Column, ForeignKey
-from src.data.db_functions import TwAPI, db_create_engine, create_dataframes_from_tweet_json
+from sqlalchemy import Column, ForeignKey, PrimaryKeyConstraint, ForeignKeyConstraint
+import src.data.db_functions as db_funcs
 
 
 app = Flask(__name__)
@@ -49,10 +48,10 @@ def initial_data_gather():
         config.read(config_file)
 
         # Instantiate Twitter API connection
-        api = TwAPI(consumer_key=config.get('TwitterKeys', 'consumer_key'),
-                    consumer_secret=config.get('TwitterKeys', 'consumer_secret'),
-                    access_token=config.get('TwitterKeys', 'access_token'),
-                    access_token_secret=config.get('TwitterKeys', 'access_token_secret'))
+        api = db_funcs.TwAPI(consumer_key=config.get('TwitterKeys', 'consumer_key'),
+                             consumer_secret=config.get('TwitterKeys', 'consumer_secret'),
+                             access_token=config.get('TwitterKeys', 'access_token'),
+                             access_token_secret=config.get('TwitterKeys', 'access_token_secret'))
 
         # Fetch twitter timeline data and pickle in dataframe format
         time_lines = api.fetch_all_timelines(screen_names=list_screen_names,
@@ -62,7 +61,7 @@ def initial_data_gather():
         with gzip.open('data/raw/raw_tweets.pickle', 'wb') as file:
             pickle.dump(time_lines, file)
 
-        users_df, tweets_df = create_dataframes_from_tweet_json(time_lines)
+        users_df, tweets_df = db_funcs.create_dataframes_from_tweet_json(time_lines)
         tweets_df.to_pickle('data/interim/tweets_df.pkl')
         users_df.to_pickle('data/interim/users_df.pkl')
 
@@ -88,8 +87,8 @@ def initial_data_load_db():
     connection_name = input("Name config details in 'config.ini' file: ")
 
     Base = declarative_base()
-    engine = db_create_engine(config_file='config.ini',
-                              conn_name=connection_name)
+    engine = db_funcs.db_create_engine(config_file='config.ini',
+                                       conn_name=connection_name)
 
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -98,7 +97,7 @@ def initial_data_load_db():
 
     class Legislators(Base):
         __tablename__ = 'legislators'
-        id = Column(VARCHAR(250), index=True, primary_key=True)
+        legislator_id = Column(VARCHAR(250), index=True, primary_key=True)
         birthday = Column(DATE)
         gender = Column(VARCHAR(1))
         religion = Column(VARCHAR(250))
@@ -110,20 +109,20 @@ def initial_data_load_db():
 
     class Social(Base):
         __tablename__ = 'social'
-        legislator_id = Column(VARCHAR(250), ForeignKey('legislators.id'), primary_key=True)
+        legislator_id = Column(VARCHAR(250), ForeignKey('legislators.legislator_id'), primary_key=True)
         facebook = Column(VARCHAR(250))
         twitter_screen_name = Column(VARCHAR(250))
         twitter_id = Column(VARCHAR(250))
 
-        # foreign key defined here to avoid foreign key constraint - not all twitter handles will have valid profiles
         twitter_accounts = relationship('Profile_Log', foreign_keys=['id'],
                                         primaryjoin='user_profile_log.id == social.twitter_id')
 
     class Profile_Log(Base):
         __tablename__ = 'user_profile_log'
-        id = Column(VARCHAR(250))
+        id = Column(INTEGER, autoincrement=True)
+        twitter_user_id = Column(VARCHAR(250))
         created_at = Column(DateTime)
-        screen_name = Column(VARCHAR(250), index=True,  primary_key=True)
+        screen_name = Column(VARCHAR(250))
         description = Column(VARCHAR(250))
         location = Column(VARCHAR(250))
         favourites_count = Column(INTEGER)
@@ -132,12 +131,18 @@ def initial_data_load_db():
         statuses_count = Column(INTEGER)
         profile_image_url = Column(VARCHAR(250))
         time_zone = Column(VARCHAR(200))
-        time_collected = Column(DateTime, index=True,  primary_key=True)
+        time_collected = Column(DateTime)
+
+        __table_args__ = (
+            PrimaryKeyConstraint('screen_name', 'time_collected'),
+            {},
+        )
 
     class Tweets(Base):
         __tablename__ = 'tweets'
-        id = Column(FLOAT, primary_key=True)
-        twitter_screen_name = Column(VARCHAR(250), index=True)
+        id = Column(INTEGER, primary_key=True, autoincrement=True)
+        tweet_id = Column(VARCHAR(30))
+        twitter_screen_name = Column(VARCHAR(250))
         created_at = Column(DateTime)
         hashtags = Column(VARCHAR(300))
         text = Column(VARCHAR(500))
@@ -150,8 +155,6 @@ def initial_data_load_db():
         user_mentions = Column(VARCHAR(250))
         time_collected = Column(DateTime)
 
-        profiles = relationship('Profile_Log')
-
     Base.metadata.create_all(engine)
 
     print('Transforming data for ingest now...')
@@ -162,59 +165,10 @@ def initial_data_load_db():
     user_profile_log = pd.read_pickle('data/interim/users_df.pkl')
     tweets = pd.read_pickle('data/interim/tweets_df.pkl')
 
-    # Populate LEGISLATOR table
-    legislators['bio.birthday'] = pd.to_datetime(legislators['bio.birthday'])
-    legislators.rename(columns={'id.bioguide': 'id',
-                                'bio.birthday': 'birthday',
-                                'bio.gender': 'gender',
-                                'bio.religion': 'religion',
-                                'name.first': 'first_name',
-                                'name.last': 'last_name',
-                                'party': 'party'}, inplace=True)
-
-    print('Populating Legislators Table')
-    legislators.to_sql(name='legislators', con=engine, if_exists='append', index=False)
-
-    # Populate USER PROFILE LOG table
-    user_profile_log.rename(columns=lambda x: str(x)[5:], inplace=True)
-    user_profile_log.rename(columns={'collected':'time_collected'}, inplace=True)
-    user_profile_log['id'] = [str(x) for x in user_profile_log['id']]
-    user_profile_log['created_at'] = pd.to_datetime(user_profile_log['created_at'])
-
-    #########
-    # Need to make twitter_screen_name lowercase
-    #########
-
-    print('Populating User Profile Log Table')
-    user_profile_log.to_sql(name='user_profile_log', con=engine, if_exists='append', index=False)
-
-    # Populate SOCIAL table
-    social['social.twitter_id'] = [str(int(x)) if not np.isnan(x) else None for x in social['social.twitter_id']]
-    #########
-    # Need to make social.twitter_screen_name lowercase
-    #########
-
-    social.rename(columns={'id.bioguide': 'legislator_id',
-                           'social.facebook': 'facebook',
-                           'social.twitter': 'twitter_screen_name',
-                           'social.twitter_id': 'twitter_id'}, inplace=True)
-
-    print('Populating Social Table')
-    social.to_sql(name='social', con=engine, if_exists='append', index=False)
-
-    # Populate TWEET table
-    tweets['id'] = [float(x) for x in tweets['id']]
-    tweets['created_at'] = pd.to_datetime(tweets['created_at'])
-
-    tweets.rename(columns={'user.screen_name': 'twitter_screen_name',
-                           'full_text': 'text'}, inplace=True)
-
-    #########
-    # Need to make twitter_screen_name lowercase
-    #########
-
-    print('Populating Tweets Table (this may take several minutes... like 30)')
-    tweets.to_sql(name='tweets', con=engine, if_exists='append', index=False)
+    db_funcs.load_tweets_table(df=tweets, engine=engine, if_exists='replace')
+    db_funcs.load_user_profile_table(df=user_profile_log, engine=engine, if_exists='replace')
+    db_funcs.load_social_table(df=social, engine=engine, if_exists='replace')
+    db_funcs.load_legislator_table(df=legislators, engine=engine, if_exists='replace')
 
     session.close_all()
     print('Database successfully created!')

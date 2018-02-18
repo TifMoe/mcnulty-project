@@ -2,6 +2,7 @@ import tweepy
 import pandas as pd
 from datetime import datetime
 import time
+import numpy as np
 from sqlalchemy import create_engine
 from configparser import ConfigParser
 
@@ -174,13 +175,76 @@ def create_dataframes_from_tweet_json(tweet_json):
     return users_df, tweets_df
 
 
-def drop_tables(table_list, engine):
+def load_legislator_table(df, engine, if_exists='append'):
+    """Utility function to transform dataframe to conform to database scheme and load in sql db"""
 
+    df['bio.birthday'] = pd.to_datetime(df['bio.birthday'])
+    df.rename(columns={'id.bioguide': 'legislator_id',
+                                'bio.birthday': 'birthday',
+                                'bio.gender': 'gender',
+                                'bio.religion': 'religion',
+                                'name.first': 'first_name',
+                                'name.last': 'last_name',
+                                'party': 'party'}, inplace=True)
+
+    print('Populating Legislators Table')
+    df.to_sql(name='legislators', con=engine, if_exists=if_exists, index=False)
+
+
+def load_user_profile_table(df, engine, if_exists='append'):
+    """Utility function to transform dataframe to conform to database scheme and load in sql db"""
+
+    df.rename(columns=lambda x: str(x)[5:], inplace=True)
+    df.rename(columns={'collected': 'time_collected'}, inplace=True)
+    df['id'] = [str(x) for x in df['id']]
+    df['created_at'] = pd.to_datetime(df['created_at'])
+    df['screen_name'] = [x.lower() for x in df['screen_name']]
+
+    df.rename(columns={'id': 'twitter_user_id'}, inplace=True)
+
+    print('Populating User Profile Log Table')
+    df.to_sql(name='user_profile_log', con=engine, if_exists=if_exists, index=False)
+
+
+def load_social_table(df, engine, if_exists='append'):
+    """Utility function to transform dataframe to conform to database scheme and load in sql db"""
+
+    df['social.twitter_id'] = [str(int(x)) if not np.isnan(x) else None for x in df['social.twitter_id']]
+    df['social.twitter'].fillna('', inplace=True)
+    df['social.twitter'] = [x.lower() for x in df['social.twitter']]
+
+    df.rename(columns={'id.bioguide': 'legislator_id',
+                       'social.facebook': 'facebook',
+                       'social.twitter': 'twitter_screen_name',
+                       'social.twitter_id': 'twitter_id'}, inplace=True)
+
+    print('Populating Social Table')
+    df.to_sql(name='social', con=engine, if_exists=if_exists, index=False)
+
+
+def load_tweets_table(df, engine, if_exists='append'):
+    """Utility function to transform dataframe to conform to database scheme and load in sql db"""
+
+    df['id'] = [str(x) for x in df['id']]
+    df['created_at'] = pd.to_datetime(df['created_at'])
+    df['user.screen_name'] = [x.lower() for x in df['user.screen_name']]
+
+    df.rename(columns={'id': 'tweet_id',
+                       'user.screen_name': 'twitter_screen_name',
+                       'full_text': 'text'}, inplace=True)
+
+    print('Populating Tweets Table (this may take several minutes... like 30)')
+    df.to_sql(name='tweets', con=engine, if_exists=if_exists, index=False)
+
+
+def drop_tables(table_list, engine):
     for table_name in table_list:
         eval(table_name).__table__.drop(engine)
     return True
 
-#tables = ['Social', 'Legislators', 'TwitterProfiles', 'Tweets']
-#drop_tables(tables, engine=db_create_engine(config_file='config.ini',
-#                                             conn_name='PostgresConfig'))
+
+def drop_all_tables():
+    tables = ['Social', 'Legislators', 'Profile_Log', 'Tweets']
+    drop_tables(tables, engine=db_create_engine(config_file='config.ini',
+                                                conn_name='PostgresConfig'))
 

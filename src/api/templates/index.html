@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Predict Partisan Tweets</title>
+  <style>
+  body{
+    font-family: sans-serif;
+  }
+  .button {
+    background-color: LightGrey;
+    border: none;
+    color: Black;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 24px;
+    margin: 4px 2px;
+    cursor: pointer;
+  }
+  .animal-card {
+    border: 1px solid #ccc;
+    padding: 10px;
+    box-shadow: 10px 10px 0px #eee;
+    width: 300px;
+    margin: auto;
+  }
+  </style>
+
+</head>
+
+<body align="center">
+
+  <h2>Enter in details about your tweet and I'll tell you if it sounds more like a Republican or a Democrat.</h2>
+
+  <form action="/predict_party/" method="post">
+
+    <div class="animal-card" align="center">
+
+      Tweet URL:
+      <br>
+        <input type="text" name="tweet_url">
+      <br>
+
+    </div>
+
+  <br>
+
+  <button type="submit" class="button">
+    What is it?
+  </button>
+  </form>
+
+  <br>
+
+  {% if message %}
+  <font  color="{{party_color}}"><h2>{{message}}</h2></font>
+  {% endif %}
+
+</body>
+</html>

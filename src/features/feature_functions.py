@@ -86,15 +86,22 @@ def generate_features(df):
     df['favs_per_followers'] = df['favorite_count']/df['user_followers']
     df['rate_all_caps'] = [find_rate_all_caps(i) for i in df['text']]
 
-    df['target'] = df['party'].replace({'Republican': 1, 'Democrat': 0})
+    try:
+        df['target'] = df['party'].replace({'Republican': 1, 'Democrat': 0})
 
-    relevant_cols = ['id', 'hour_created', 'weekday_created',
-                     'photo_exists', 'tweet_sentiment', 'retweets_per_followers',
-                     'favs_per_followers', 'rate_all_caps', 'retweet_count',
-                     'favorite_count', 'text_length', 'target']
+        relevant_cols = ['id', 'hour_created', 'weekday_created',
+                         'photo_exists', 'tweet_sentiment', 'retweets_per_followers',
+                         'favs_per_followers', 'rate_all_caps', 'retweet_count',
+                         'favorite_count', 'text_length', 'target']
 
-    drop_rows = df[df['party'] == 'Independent'].index
-    df.drop(drop_rows, inplace=True)
+        drop_rows = df[df['party'] == 'Independent'].index
+        df.drop(drop_rows, inplace=True)
+
+    except KeyError:
+        relevant_cols = ['tweet_id', 'hour_created', 'weekday_created',
+                         'photo_exists', 'tweet_sentiment', 'retweets_per_followers',
+                         'favs_per_followers', 'rate_all_caps', 'retweet_count',
+                         'favorite_count', 'text_length']
 
     return df[relevant_cols], df
 

@@ -4,6 +4,7 @@ import pickle
 from datetime import datetime, timedelta
 import gzip
 import yaml
+from dateutil.parser import parse
 from sqlalchemy.ext.declarative import declarative_base
 from configparser import ConfigParser
 from sqlalchemy.dialects.postgresql import INTEGER, VARCHAR, DATE
@@ -12,6 +13,8 @@ from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import Column, ForeignKey, PrimaryKeyConstraint
 import src.data.db_functions as db_funcs
 from src.data.sql_queries import last_updated_sql
+from src.data.export_data import create_gs_client, next_available_row, add_new_rows
+from src.data.sql_queries import past_week_tweets_sql
 
 
 app = Flask(__name__)
@@ -221,6 +224,36 @@ def load_new_twitter_data():
     print('Successfully updated!')
 
 
+@app.cli.command()
+def update_google_sheet():
+    """
+    Add new tweets to google sheet for Tableau
+    """
+
+    print('Fetching data from Google Sheet...')
+    gc = create_gs_client('google_service_account.json')
+    worksheet = gc.open("Legislator Twitter Data").sheet1
+
+    print('Fetching tweet data from database...')
+    # Fetch past week tweet data
+    engine = db_funcs.db_create_engine(config_file='config.ini', conn_name='PostgresConfig')
+    past_week = pd.read_sql(sql=past_week_tweets_sql, con=engine)
+
+    # Identify and load new tweets in Google Sheet
+    first_blank_row = int(next_available_row(worksheet))
+    most_recent_date = worksheet.acell('E{}'.format(first_blank_row - 1)).value
+
+    new_tweets = past_week[past_week['created_at'] > parse(most_recent_date)]
+    print('{} new tweets identified. Adding now...'.format(len(new_tweets)))
+
+    add_new_rows(df=new_tweets, sheet=worksheet,
+                 first_blank_row=first_blank_row, gs_client=gc)
+
+    print('Successfully added!')
+
+
 if __name__ == '__main__':
     initial_data_gather()
     initial_data_load_db()
+    load_new_twitter_data()
+    update_google_sheet()

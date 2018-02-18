@@ -75,7 +75,7 @@ def find_best_classifier(features, response, set_seed, k_folds, crossval_scoring
         raise Warning("Features and response inputs must be of type numpy.ndarray")
 
 
-data = pd.read_pickle('data/feature_engineering.pkl')
+data = pd.read_pickle('data/base_features.pkl')
 
 y = np.array(data.pop('target'))
 X = np.array(data.drop(['id'], axis=1))

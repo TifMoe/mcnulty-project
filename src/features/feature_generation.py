@@ -1,50 +1,70 @@
 from src.features import feature_functions as feat_funcs
 from sklearn.model_selection import train_test_split
-import pickle
-import nltk
+from flask import Flask
 
-# Pickle base features (non-text)
-all_tweets = feat_funcs.fetch_all_tweets(config_file='config.ini',
-                                         conn_name='PostgresConfig')
 
-relevant_features, all_possible_features = feat_funcs.generate_features(all_tweets)
-relevant_features.to_pickle('data/feature_engineering.pkl')
-all_possible_features.to_csv('data/all_feature_engineering.csv')
+app = Flask(__name__)
 
-# Pickle text features
-target = all_tweets['target']
-features = all_tweets['text']
 
-x_train, x_test, y_train, y_test = train_test_split(features, target,
-                                                    test_size=.2,
-                                                    random_state=42)
+@app.cli.command()
+def pickle_all_features():
+    """
+    Generate new features from all available data
+    """
+    all_tweets = feat_funcs.fetch_all_tweets(config_file='config.ini',
+                                             conn_name='PostgresConfig')
 
-# Clean and tokenize words in train and test set before identifying feature set
-clean_train = feat_funcs.tokenize_tweets(x_train)
-clean_test = feat_funcs.tokenize_tweets(x_test)
+    # Pickle base features for model on meta data
+    base_features = feat_funcs.generate_features(all_tweets)
+    base_features.to_pickle('data/processed/base_features.pkl')
 
-word_feature_set = feat_funcs.find_top_used_words(tokenized_text=clean_train, top_x=1750)
+    # Pickle text features for future predictions
+    features = all_tweets['text']
 
-# Write word_features file to project for future use
-with open('data/word_features.pkl', 'wb') as wf:
-    pickle.dump(word_feature_set, wf)
+    # Create features for top 1750 most common words
+    feature_set = feat_funcs.generate_common_word_features(features,
+                                                            pickle_new_features=True,
+                                                            pkl_filename='word_features')
 
-# Find features for training and test set
-train = zip(clean_train, y_train)
-test = zip(clean_test, y_test)
+    feature_set.to_pickle('data/processed/text_features.pkl')
 
-train_set = [(feat_funcs.find_text_features(tweet, feature_set=word_feature_set), ind) for (tweet, ind) in train]
-test_set = [(feat_funcs.find_text_features(tweet, feature_set=word_feature_set), ind) for (tweet, ind) in test]
+    target = all_tweets['target']
+    target.to_pickle('data/processed/target.pkl')
 
-# Pickle training and test text feature sets for model selection
-with open('data/train_text_features.pkl', 'wb') as wf:
-    pickle.dump(train_set, wf)
 
-with open('data/test_text_features.pkl', 'wb') as wf:
-    pickle.dump(test_set, wf)
+@app.cli.command()
+def pickle_text_features_eval():
+    """
+    Generate new text features for model evaluation
+    """
+    all_tweets = feat_funcs.fetch_all_tweets(config_file='config.ini',
+                                             conn_name='PostgresConfig')
+    base_features = feat_funcs.generate_features(all_tweets)
 
-# Train Naive Bayes classifier on training feature set to see most informative features
-classifier = nltk.NaiveBayesClassifier.train(train_set)
+    # Pickle text features
+    target = base_features['target']
+    features = all_tweets['text']
 
-print("Classifier percent accuracy:", (nltk.classify.accuracy(classifier, test_set))*100)
-classifier.show_most_informative_features(50)
+    x_train, x_test, y_train, y_test = train_test_split(features, target,
+                                                        test_size=.2,
+                                                        random_state=42)
+
+    # Clean and tokenize words in train and test set before identifying feature set
+    train_features = feat_funcs.generate_common_word_features(x_train,
+                                                   pickle_new_features=True,
+                                                   pkl_filename='feature_word_features')
+
+    test_features = feat_funcs.generate_common_word_features(x_test,
+                                                  pickle_new_features=False,
+                                                  pkl_filename='feature_word_features')
+
+    train_features['target'] = list(y_train)
+    test_features['target'] = list(y_test)
+
+    train_features.to_pickle('data/processed/train_text_features.pkl')
+    test_features.to_pickle('data/processed/test_text_features.pkl')
+
+
+if __name__ == '__main__':
+    pickle_all_features()
+    pickle_text_features_eval()

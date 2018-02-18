@@ -1,5 +1,5 @@
 from src.data.db_functions import TwAPI, create_dataframes_from_tweet_json
-from src.features.feature_functions import generate_features
+from src.features.feature_functions import generate_features, generate_common_word_features
 from configparser import ConfigParser
 import pandas as pd
 import numpy as np
@@ -66,6 +66,8 @@ def generate_tweet_features(tweet_json):
                              'user.screen_name': 'twitter_screen_name',
                              'full_text': 'text'}, inplace=True)
 
-    features, _ = generate_features(df=tweet_df)
-
-    return np.array(features), display_info
+    base_features = generate_features(df=tweet_df)
+    print(base_features)
+    text_features = generate_common_word_features(text_data=[tweet_text])
+    print(text_features)
+    return np.array(base_features), text_features, display_info

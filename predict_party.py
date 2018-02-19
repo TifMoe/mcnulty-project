@@ -2,10 +2,10 @@ import pickle
 from src.models.ensemble_models import ensemble_base_text_models
 
 # read in the models
-with open("models/gcb_clf_base_features.pkl", "rb") as mdl:
+with open("models/final_base_clf.pkl", "rb") as mdl:
     base_model = pickle.load(mdl)
 
-with open("models/nb_clf_text_features.pkl", "rb") as mdl:
+with open("models/final_text_clf.pkl", "rb") as mdl:
     text_model = pickle.load(mdl)
 
 

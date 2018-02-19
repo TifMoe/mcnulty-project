@@ -23,13 +23,14 @@
     padding: 10px;
     width: 500px;
     margin: auto;
-
   }
   .input_box{
-    width: 300px;
-    height: 25px
-  }
+    width: 500px;
+    height: 35px;
+    font-size: 25px;
+    color: Grey;
 
+  }
 h2 {
   margin: 0 0 30px 0;
   padding: 0 0 25px 0;
@@ -37,15 +38,12 @@ h2 {
   font-family: sans-serif;
   font-weight: normal;
   font-size: 45px;
-
 }
-
 h3 {
   font-family: sans-serif;
   font-weight: normal;
   font-size: 25px;
 }
-
 .container {
   width: 1000px;
   margin: auto;
@@ -54,7 +52,6 @@ h3 {
   padding: 10px;
   overflow: hidden;
 }
-
 .horizontal .progress-bar {
   float: left;
   align: center;
@@ -62,7 +59,6 @@ h3 {
   width: 100%;
   padding: 12px 0;
 }
-
 .horizontal .progress-track {
   position: relative;
   width: 100%;
@@ -73,7 +69,6 @@ h3 {
   font-family: "Lato","Verdana",sans-serif;
   font-size: 12px;
 }
-
 .horizontal .progress-fill {
   position: relative;
   background: #4c4cff;
@@ -86,6 +81,9 @@ h3 {
   line-height: 20px;
 }
 
+.img-circle {
+    border-radius: 50%;
+}
 
   </style>
 
@@ -99,9 +97,7 @@ h3 {
 
     <div class="animal-card" align="center">
 
-      <h3>Enter the URL for a tweet below:</h3>
-      <br>
-        <input type="text" name="tweet_url" class="input_box" >
+        <input type="text" value="Enter the URL for a tweet here" name="tweet_url" class="input_box" >
       <br>
 
     </div>
@@ -109,11 +105,13 @@ h3 {
   <br>
 
   <button type="submit" class="button">
-    Check this tweet
+    Predict Party Now
   </button>
   </form>
 
   <br>
+
+  <img src="{{profile_photo}}" align="center" class="img-circle">
 
   {% if message %}
   <font color={{party_color}}> <h3>{{message}}</h3> </font>

@@ -214,22 +214,22 @@ def find_text_features(tweet, feature_set):
     return features
 
 
-def generate_common_word_features(text_data, pickle_new_features=False, pkl_filename='word_features'):
+def generate_common_word_features(text_data, pickle_new_features=False, word_feature_filename='all_word_features'):
     """
     Utility function to tokenize text data, find top words in a corpus of text and pickle them as word features
     """
     clean_features = tokenize_tweets(text_data)
 
     if pickle_new_features:
-        print('Pickling word features to {}.pkl for future use'.format(pkl_filename))
-        word_feature_set = find_top_used_words(tokenized_text=clean_features,
-                                                          top_x=1750)
 
-        with open('data/processed/{}.pkl'.format(pkl_filename), 'wb') as wf:
+        print('Pickling word features to {}.pkl for future use'.format(word_feature_filename))
+        word_feature_set = find_top_used_words(tokenized_text=clean_features, top_x=1750)
+
+        with open('data/processed/{}.pkl'.format(word_feature_filename), 'wb') as wf:
             pickle.dump(word_feature_set, wf)
 
     else:
-        with open('data/processed/{}.pkl'.format(pkl_filename), 'rb') as features:
+        with open('data/processed/{}.pkl'.format(word_feature_filename), 'rb') as features:
             word_feature_set = pickle.load(features)
 
     feature_set = [(find_text_features(tweet, feature_set=word_feature_set))

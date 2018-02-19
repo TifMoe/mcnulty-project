@@ -1,6 +1,7 @@
 from src.data.db_functions import TwAPI, create_dataframes_from_tweet_json
 from src.features.feature_functions import generate_features, generate_common_word_features
 from configparser import ConfigParser
+from tweepy.error import TweepError
 import pandas as pd
 import numpy as np
 
@@ -39,7 +40,11 @@ def fetch_tweet_info(url):
                 access_token=config.get('TwitterKeys', 'access_token'),
                 access_token_secret=config.get('TwitterKeys', 'access_token_secret'))
 
-    tweet = api.api.get_status('{}'.format(tweet_id), tweet_mode="extended")
+    try:
+        tweet = api.api.get_status('{}'.format(tweet_id), tweet_mode="extended")
+    except TweepError as e:
+        raise(e)
+
     return tweet._json
 
 
@@ -52,11 +57,9 @@ def generate_tweet_features(tweet_json):
 
     name = tweet_json['user']['name']
     profile_image = tweet_json['user']['profile_image_url_https']
-    profile_banner = tweet_json['user']['profile_banner_url']
     tweet_text = tweet_json['full_text']
 
-    display_info = {'name': name, 'profile_image': profile_image,
-                    'profile_banner': profile_banner, 'tweet_text': tweet_text}
+    display_info = {'name': name, 'profile_image': profile_image, 'tweet_text': tweet_text}
 
     _, tweet_df = create_dataframes_from_tweet_json(tweet_json)
 
@@ -67,7 +70,6 @@ def generate_tweet_features(tweet_json):
                              'full_text': 'text'}, inplace=True)
 
     base_features = generate_features(df=tweet_df)
-    print(base_features)
     text_features = generate_common_word_features(text_data=[tweet_text])
-    print(text_features)
+
     return np.array(base_features), text_features, display_info

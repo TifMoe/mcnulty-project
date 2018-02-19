@@ -1,6 +1,7 @@
 from flask import Flask, request, render_template
 from predict_party import dem_or_rep
 from src.features.fetch_tweet_features import generate_tweet_features, fetch_tweet_info
+from tweepy.error import TweepError
 
 
 # create a flask object
@@ -22,13 +23,13 @@ def render_message():
     url = request.form['tweet_url']
 
     # Error message if not valid Tweet URL
-    messages = ["Please enter a valid URL for a single Tweet"]
+    messages = ["Twitter API is not available for this user"]
 
     # Generate features from tweet
     try:
         tweet_info = fetch_tweet_info(url)
         base_features, text_features, display_info = generate_tweet_features(tweet_info)
-    except:
+    except TweepError:
         return render_template('index.html', message=messages[0])
 
     # show user final message

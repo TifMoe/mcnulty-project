@@ -5,6 +5,7 @@ import time
 import numpy as np
 from sqlalchemy import create_engine
 from configparser import ConfigParser
+import pytz
 
 
 # Connect to Postgres DB
@@ -158,7 +159,7 @@ def create_dataframes_from_tweet_json(tweet_json):
     tweets_df['hashtags'] = [list_hashtags(tag) for tag in tweets_df['entities.hashtags']]
     tweets_df['media_type'] = [list_media(tag) for tag in tweets_df['entities.media']]
     tweets_df['user_mentions'] = [list_mentions(tag) for tag in tweets_df['entities.user_mentions']]
-    tweets_df['time_collected'] = datetime.now()
+    tweets_df['time_collected'] = datetime.utcnow()
 
     # Cleanup
     tweets_df.drop(['display_text_range', 'entities.hashtags',
@@ -235,16 +236,4 @@ def load_tweets_table(df, engine, if_exists='append'):
 
     print('Populating Tweets Table (this may take several minutes... like 30)')
     df.to_sql(name='tweets', con=engine, if_exists=if_exists, index=False)
-
-
-def drop_tables(table_list, engine):
-    for table_name in table_list:
-        eval(table_name).__table__.drop(engine)
-    return True
-
-
-def drop_all_tables():
-    tables = ['Social', 'Legislators', 'Profile_Log', 'Tweets']
-    drop_tables(tables, engine=db_create_engine(config_file='config.ini',
-                                                conn_name='PostgresConfig'))
 

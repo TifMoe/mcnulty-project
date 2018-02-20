@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, url_for
 from predict_party import dem_or_rep
 from src.features.fetch_tweet_features import generate_tweet_features, fetch_tweet_info
 from tweepy.error import TweepError

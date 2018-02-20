@@ -1,136 +1,149 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-	<title>Predict Partisan Tweets</title>
+  <!-- Theme Made By www.w3schools.com - No Copyright -->
+  <title>Bootstrap Theme Simply Me</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
   <style>
-  body{
-    font-family: sans-serif;
+  body {
+      font: 20px Montserrat, sans-serif;
+      line-height: 1.8;
+      color: #f5f6f7;
   }
-  .button {
-    background-color: LightGrey;
-    border: none;
-    color: Black;
-    padding: 15px 30px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 18px;
-    box-shadow: 5px 5px 0px #eee;
-    margin: auto;
-    cursor: pointer;
+  p {font-size: 16px;}
+  .margin {margin-bottom: 45px;}
+  .bg-1 {
+      background-color: #D0D3D4; /* Light Grey */
+      color: #555555;
   }
-  .animal-card {
-    padding: 10px;
-    width: 500px;
-    margin: auto;
+  .bg-2 {
+      background-color: #ffffff; /* White */
+      color: #555555;
   }
+  .bg-3 {
+      background-color: #424242; /* Dark Grey */
+      color: ##626567;
+  }
+  .bg-4 {
+      background-color: #2f2f2f; /* Black Gray */
+      color: #fff;
+  }
+  .container-fluid {
+      padding-top: 70px;
+      padding-bottom: 70px;
+  }
+  .navbar {
+      padding-top: 15px;
+      padding-bottom: 15px;
+      border: 0;
+      border-radius: 0;
+      margin-bottom: 0;
+      font-size: 12px;
+      letter-spacing: 5px;
+  }
+  .navbar-nav  li a:hover {
+      color: #1abc9c !important;
+  }
+
+    }
   .input_box{
     width: 500px;
-    height: 35px;
+    height: 30px;
     font-size: 25px;
     color: Grey;
-
   }
-h2 {
-  margin: 0 0 30px 0;
-  padding: 0 0 25px 0;
-  border-bottom: 2px solid #999;
-  font-family: sans-serif;
-  font-weight: normal;
-  font-size: 45px;
-}
-h3 {
-  font-family: sans-serif;
-  font-weight: normal;
-  font-size: 25px;
-}
-.container {
-  width: 1000px;
-  margin: auto;
-  align: center;
-  background: #fff;
-  padding: 10px;
-  overflow: hidden;
-}
-.horizontal .progress-bar {
-  float: left;
-  align: center;
-  height: 45px;
-  width: 100%;
-  padding: 12px 0;
-}
-.horizontal .progress-track {
-  position: relative;
-  width: 100%;
-  height: 70px;
-  background: #ff3232;
-  color: #fff;
-  text-align: center;
-  font-family: "Lato","Verdana",sans-serif;
-  font-size: 12px;
-}
-.horizontal .progress-fill {
-  position: relative;
-  background: #4c4cff;
-  height: 70px;
-  width: 70%;
-  color: #fff;
-  text-align: center;
-  font-family: "Lato","Verdana",sans-serif;
-  font-size: 12px;
-  line-height: 20px;
-}
-
-.img-circle {
-    border-radius: 50%;
-}
 
   </style>
-
 </head>
+<body>
 
-<body align="center">
-
-  <h2>How Partisan Is This Tweet?</h2>
-
-  <form action="/predict_party/" method="post">
-
-    <div class="animal-card" align="center">
-
-        <input type="text" value="Enter the URL for a tweet here" name="tweet_url" class="input_box" >
-      <br>
-
+<!-- Navbar -->
+<nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="#">PREDICTING PARTISAN TWEETS</a>
     </div>
-
-  <br>
-
-  <button type="submit" class="button">
-    Predict Party Now
-  </button>
-  </form>
-
-  <br>
-
-  <img src="{{profile_photo}}" align="center" class="img-circle">
-
-  {% if message %}
-  <font color={{party_color}}> <h3>{{message}}</h3> </font>
-  {% endif %}
-
-<!-- Horizontal, rounded -->
-
-  <div class="container horizontal rounded" align="center">
-    <div class="progress-bar horizontal">
-      <div class="progress-track">
-        <div class="progress-fill" data-file-width="5%">
-        </div>
-      </div>
+    <div class="collapse navbar-collapse" id="myNavbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="#predict">PREDICTION</a></li>
+        <li><a href="#explore">EXPLORATION</a></li>
+        <li><a href="#about">ABOUT THE AUTHOR</a></li>
+      </ul>
     </div>
   </div>
+</nav>
 
+<!-- First Container -->
+<div id="predict" class="container-fluid bg-1 text-center">
+    <br>
+  <h2 class="margin">How Partisan is this tweet?</h2>
+
+  <img src="{{ url_for('static', filename='twitter_politics.png') }}"
+       class="img-responsive img-circle margin" style="display:inline" alt="Twitter" width="250" height="250">
+
+    <img src="{{profile_photo}}" align="center" class="img-circle">
+
+  <form action="/predict_party/" method="post">
+     <input type="text" name="tweet_url" class="input_box" >
+      <br>
+
+  </form>
+  <h4>Submit the URL for a tweet above</h4>
   <br>
-  <iframe src="https://public.tableau.com/views/PastWeeksPartisanTweets/LegislatorHashtags?:showVizHome=no&:embed=true"
+
+  {% if message %}
+  <font color={{party_color}}> <h2>{{message}}</h2> </font>
+
+  <div class="progress" data-file-width="50%">
+  <div class="progress-bar progress-bar-success" role="progressbar" style="width:40%">
+    Republican
+  </div>
+  <div class="progress-bar progress-bar-warning" role="progressbar" style="width:10%">
+    Democrat
+  </div>
+</div>
+
+  {% endif %}
+</div>
+
+<!-- Second Container -->
+<div id="explore" class="container-fluid bg-2 text-center">
+  <h3 class="margin"></h3>
+
+   <iframe src="https://public.tableau.com/views/PastWeeksPartisanTweets/LegislatorHashtags?:showVizHome=no&:embed=true"
         width="1221" height="890" frameborder="0"></iframe>
+
+</div>
+
+<!-- Third Container (Grid) -->
+<div id="about" class="container-fluid bg-3 text-center">
+  <h3 class="margin">About the Author</h3><br>
+  <div class="row">
+
+    <div class="col-sm-4">
+        <img src="https://avatars2.githubusercontent.com/u/26209740?s=400&u=70fd8b4817a4d4dfffaf68903e290dd562e0027c&v=4"
+       class="img-responsive img-circle" style="display:inline" alt="Author Image" width="200" height="200">
+    </div>
+
+    <div class="col-sm-4">
+      <p>Tiffany Moeller - Data Scientist in Chicago</p>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="container-fluid bg-4 text-center">
+</footer>
 
 </body>
 </html>

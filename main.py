@@ -35,6 +35,8 @@ def render_message():
     # show user final message
     final_message, party = dem_or_rep(base_features, text_features)
     return render_template('index.html', profile_photo=display_info['profile_image'],
+                           twitter_name=display_info['name'],
+                           tweet_text=display_info['tweet_text'],
                            message=final_message, party_color=party)
 
 

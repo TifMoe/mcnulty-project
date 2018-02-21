@@ -23,7 +23,7 @@ def dem_or_rep(base_features, text_features,
     message_array = ["{}% Democrat!".format(round((1-predict_prob)*100, 2)),
                      "{}% Republican!".format(round(predict_prob*100, 2))]
 
-    party_color = ['#4c4cff', '#ff3232']
+    party_color = ['#0059B2', '#ff3232']
     print(party_color[prediction])
 
     return message_array[prediction], party_color[prediction]
